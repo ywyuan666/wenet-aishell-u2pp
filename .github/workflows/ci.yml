@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install torch torchaudio
+
+      - name: Verify project structure
+        run: |
+          echo "=== Scripts ===" && ls scripts/
+          echo "=== Tools ===" && ls tools/
+          echo "=== Env ===" && bash -n env_autodl.sh && echo "env_autodl.sh: OK"
+          for f in scripts/*.sh; do bash -n "$f" && echo "$f: OK"; done
+
+      - name: Python syntax check
+        run: |
+          python -c "import ast; [ast.parse(open(f).read()) for f in ['tools/make_subset_data_list.py','tools/jsonl_to_wenet_data.py','tools/summarize_wenet_results.py','eval_cer.py']]"
+          echo "All Python files syntax OK"
+
+      - name: Install WeNet (CPU)
+        run: |
+          cd wenet
+          grep -vE '^(torch|torchaudio|deepspeed)' requirements.txt > /tmp/req.txt
+          pip install -r /tmp/req.txt
+          pip install -e . --no-deps
+
+      - name: Verify WeNet import
+        run: python -c "import wenet; print('WeNet version:', wenet.__version__ if hasattr(wenet,'__version__') else 'ok')"

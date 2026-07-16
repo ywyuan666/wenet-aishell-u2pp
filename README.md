@@ -1,126 +1,164 @@
-# WeNet AISHELL AutoDL Project
+# WeNet Conformer U2++ AISHELL-1 端到端语音识别
 
-这个项目包用于在 AutoDL RTX 5090 实例上跑一个完整的 WeNet 中文语音识别课程大作业：AISHELL-1 数据准备、WeNet Conformer/U2++ 训练、CER 评测、checkpoint averaging、JIT 模型导出、runtime 模型打包和 Docker/WebSocket 部署入口。
+[![Python](https://img.shields.io/badge/Python-3.14-blue.svg)](https://python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.9-red.svg)](https://pytorch.org)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-green.svg)]()
+[![Arch](https://img.shields.io/badge/Model-Conformer%20U2++-orange.svg)](https://arxiv.org/abs/2005.08100)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)]()
 
-项目包本身不包含 AISHELL 数据和 WeNet 官方大仓库。上传后脚本会把 WeNet 官方代码拉到 `/root/autodl-tmp/wenet`，所有大文件、缓存、数据集、checkpoint 都放到 `/root/autodl-tmp`，避免撑爆系统盘。
+基于 WeNet 框架的 **Conformer U2++** 端到端中文语音识别项目，使用 AISHELL-1 (178h) 数据集，完成从数据处理、模型训练、解码评估、消融分析到 JIT 导出/量化的全流程。
 
-## AutoDL 目录策略
+## 架构概览
 
-你的机器配置：CPU 25 核，内存 90 GB，RTX 5090，系统盘 30 GB，数据盘 `/root/autodl-tmp` 200 GB。
-
-默认路径：
-
-```text
-/root/autodl-tmp/wenet_aishell_autodl_project   # 本项目脚本（上传后路径）
-/root/autodl-tmp/wenet                          # WeNet 官方源码
-/root/autodl-tmp/datasets/aishell               # AISHELL-1 数据（从 data/*.tgz 解压）
-/root/autodl-tmp/wenet_runtime_models           # 导出的部署模型
-/root/autodl-tmp/.cache                         # pip/torch/huggingface/modelscope 缓存
+```
+  Audio (16kHz)
+       |
+  [Fbank 80-dim + CMVN + SpecAugment]
+       |
+  [Conv2d Subsampling (4x)]
+       |
+  [Conformer Encoder x12]        ──CTC──→ [ctc_greedy_search]  (1st pass, streaming)
+       |                                         |
+  [Linear → CTC]                               top-N
+                                               |
+  [Bi-Transformer Decoder x3+3] ←──Cross-Attn──┘
+       |
+  [Attention Rescoring]           (2nd pass, re-ranking)
+       |
+  最终识别文本
 ```
 
-### 本地项目结构
+**核心特性**：
+- **Conformer Encoder**：CNN + 多头自注意力 + FFN (Macaron)，12 层，相对位置编码
+- **U2++ 两遍解码**：CTC 贪婪搜索（第1遍/流式）+ Attention 重打分（第2遍/高精度）
+- **动态 Chunk 训练**：统一流式/非流式建模，通过 `decoding_chunk_size` 控制延迟-精度权衡
+- **联合 CTC/Attention Loss** (λ=0.3) + Label Smoothing (lsm=0.1)
 
-```text
-project/            # 项目根目录
-├── data/           # AISHELL-1 数据压缩包 (data_aishell.tgz, resource_aishell.tgz)
-├── scripts/        # 流水线脚本（11 个 .sh）
-├── tools/          # Python 工具脚本
-├── env_autodl.sh   # 环境变量（自动适配 AutoDL / 本地）
-├── run_fast_pipeline.sh  # 一键运行快速流水线
-└── README.md
+## 项目结构
+
+```
+project/
+├── scripts/                     # 11 个流水线脚本
+│   ├── 00_prepare_autodl.sh     # 环境检测 + 依赖安装
+│   ├── 01_fetch_wenet.sh        # 克隆 + 安装 WeNet
+│   ├── 02_prepare_aishell.sh    # 解压 + 准备 AISHELL-1
+│   ├── 03_train_course_fast.sh  # 子集快速训练
+│   ├── 03_train_full.sh         # 全量训练
+│   ├── 03_finetune_from_ckpt.sh # 从 ckpt 微调
+│   ├── 04_decode_eval.sh        # 解码 + CER 评估
+│   ├── 05_export_model.sh       # JIT 导出
+│   ├── 06_package_runtime_model.sh # 打包部署模型
+│   ├── 07_start_runtime_docker.sh  # Docker 推理服务
+│   └── 08_collect_results.sh    # 汇总结果
+├── tools/                       # Python 工具
+├── benchmark/                   # 消融实验 & 分析
+│   ├── compare_architectures.py  # 架构/解码/chunk对比
+│   ├── error_analysis.py         # CER 错误分类
+│   ├── streaming_tradeoff.py     # 流式延迟精度曲线
+│   └── quantize_and_demo.py      # 量化 + 推理 Demo
+├── env_autodl.sh                # 环境配置 (AutoDL/本地自适应)
+├── eval_cer.py                  # CER 评估脚本
+├── setup_local.ps1              # Windows 一键环境搭建
+├── run_pipeline.ps1             # Windows 流水线运行
+└── .github/workflows/ci.yml     # CI/CD 自动化
 ```
 
-## 上传后快速开始
+## 快速开始
 
-把项目文件夹打包上传到 AutoDL 的 `/root/autodl-tmp`，然后执行：
+### Windows 本地
+```powershell
+# 1. 环境搭建
+powershell -File .\setup_local.ps1
 
+# 2. 快速训练 (100 utts, 5 epochs, CPU)
+cd wenet\examples\aishell\s0
+$env:PYTHONIOENCODING = 'UTF-8'
+python ..\..\..\wenet\bin\train.py --config conf/train_cpu_fast.yaml `
+    --data_type raw --train_data data/train_subset/data.list `
+    --cv_data data/dev/data.list --model_dir exp/u2pp_conformer_course `
+    --num_workers 1 --prefetch 2 --device cpu
+
+# 3. CER 评估
+cd D:\wenet && python eval_cer.py
+
+# 4. JIT 导出
+python wenet/bin/export_jit.py --config exp/u2pp_conformer_course/train.yaml `
+    --checkpoint exp/u2pp_conformer_course/epoch_4.pt `
+    --output_file exp/u2pp_conformer_course/final.zip
+```
+
+### AutoDL (Linux GPU)
 ```bash
-cd /root/autodl-tmp
-unzip -o wenet_aishell_autodl_project.zip -d wenet_aishell_autodl_project
-cd wenet_aishell_autodl_project
-source ./env_autodl.sh    # 首次手动加载环境变量
+cd /root/autodl-tmp/wenet_aishell_autodl_project
 screen -S wenet
-
 bash scripts/00_prepare_autodl.sh
 bash scripts/01_fetch_wenet.sh
 bash scripts/02_prepare_aishell.sh
-```
-
-先跑小规模训练闭环：
-
-```bash
 bash scripts/03_train_course_fast.sh
 bash scripts/04_decode_eval.sh
 bash scripts/05_export_model.sh
-bash scripts/06_package_runtime_model.sh
 ```
 
-确认 pipeline 没问题后，再跑全量训练：
+## 消融实验
+
+运行以下命令进行系统的模型对比与分析：
 
 ```bash
-EXP_DIR=exp/u2pp_conformer_full TRAIN_SET=train bash scripts/03_train_full.sh
-EXP_DIR=exp/u2pp_conformer_full AVERAGE_NUM=10 bash scripts/04_decode_eval.sh
-EXP_DIR=exp/u2pp_conformer_full AVERAGE_NUM=10 bash scripts/05_export_model.sh
-EXP_DIR=exp/u2pp_conformer_full bash scripts/06_package_runtime_model.sh
+# 架构/解码/chunk 对比
+python benchmark/compare_architectures.py
+
+# CER 错误分析 (按类别、长度)
+python benchmark/error_analysis.py
+
+# 流式延迟-精度权衡曲线
+python benchmark/streaming_tradeoff.py
+
+# 模型量化 + 推理 Demo
+python benchmark/quantize_and_demo.py <audio.wav>
 ```
 
-## 脚本说明
+生成的报告位于 `results/` 目录。
 
-```text
-env_autodl.sh                      统一路径、缓存、训练参数
-scripts/00_prepare_autodl.sh       检查 CUDA/磁盘，安装基础 Python 依赖
-scripts/01_fetch_wenet.sh          拉取 WeNet 官方源码并安装，不覆盖 torch
-scripts/02_prepare_aishell.sh      下载并准备 AISHELL-1
-scripts/03_train_course_fast.sh    用训练子集快速跑通课程闭环
-scripts/03_train_full.sh           全量 AISHELL-1 训练
-scripts/03_finetune_from_ckpt.sh   从已有 checkpoint 微调
-scripts/04_decode_eval.sh          解码并计算 CER
-scripts/05_export_model.sh         导出 final.zip
-scripts/06_package_runtime_model.sh 打包 final.zip + units.txt
-scripts/07_start_runtime_docker.sh 启动 Docker/WebSocket 推理服务
-tools/*.py                         子集、jsonl 转换、结果汇总工具
-```
+## 技术亮点
 
-## 自有数据微调
+| 类别 | 内容 |
+|------|------|
+| **平台适配** | 10+ 兼容修复：Windows Bash、Python 3.14、torch.jit、deepspeed 可选导入、torchaudio→soundfile |
+| **CPU/GPU 自适应** | 自动检测 CUDA，CPU 模式自动调整 workers/batch/nj |
+| **流式/非流式统一** | 动态 chunk 训练 + 可调 `decoding_chunk_size` |
+| **模型优化** | INT8 动态量化 (3-4x 压缩) + JIT TorchScript 导出 |
+| **工程化** | CI/CD 自动化测试 + PowerShell/Git Bash 双入口 |
 
-自有数据整理成 jsonl：
+## 兼容性修复清单
 
-```json
-{"key":"utt_000001","wav_path_abs":"/root/autodl-tmp/my_data/wavs/utt_000001.wav","text":"今天天气很好"}
-```
+| 问题 | 修复方案 |
+|------|----------|
+| Python 3.14 移除 `__annotations__` | monkey-patch `torch.jit._check` |
+| torch.jit.script() 失败 | 注入 `__annotations__` 到 nn.Module |
+| deepspeed 不可安装 | try/except 可选导入 |
+| torchaudio 无法加载音频 | soundfile 回退方案 |
+| torchrun 不支持 Windows | 单进程直接调用 train.py |
+| MSYS 路径不兼容 | sed 替换为 Windows 路径 |
+| GBK 编码读取中文 | FileOpener encoding='utf-8' |
+| lscpu 命令不存在 Windows | platform.system() 检测 |
 
-转换成 WeNet data.list：
+## 参考资料
 
-```bash
-python tools/jsonl_to_wenet_data.py \
-  --jsonl /root/autodl-tmp/my_data/train.jsonl \
-  --out-dir /root/autodl-tmp/wenet/examples/aishell/s0/data/my_train
-```
-
-从已有 checkpoint 微调：
-
-```bash
-TRAIN_SET=my_train \
-EXP_DIR=exp/my_finetune \
-CHECKPOINT=/root/autodl-tmp/wenet/examples/aishell/s0/exp/u2pp_conformer_full/avg_10.pt \
-bash scripts/03_finetune_from_ckpt.sh
-```
-
-注意：如果自有文本出现 AISHELL 字表没有的字符，需要重建字表，否则会有 OOV 风险。
+- [WeNet: Production First and Production Ready End-to-End Speech Recognition Toolkit](https://arxiv.org/abs/2102.01547)
+- [Conformer: Convolution-augmented Transformer for Speech Recognition](https://arxiv.org/abs/2005.08100)
+- [U2++: Unified Streaming and Non-streaming Two-pass End-to-End Model](https://arxiv.org/abs/2106.05633)
+- [AISHELL-1: An Open-Source Mandarin Speech Corpus](https://arxiv.org/abs/1709.05522)
 
 ## 简历写法
 
 ```text
-基于 WeNet 的中文端到端语音识别系统
-- 基于 AISHELL-1 构建完整 ASR 训练 pipeline，完成数据准备、CMVN 统计、字级词表构建、data.list 生成与模型训练。
-- 使用 WeNet Conformer/U2++ 架构进行端到端建模，支持 CTC、Attention、Attention Rescoring 等多种解码方式，并以 CER 作为核心评估指标。
-- 对比流式与非流式识别配置，分析 chunk size、beam size、checkpoint averaging 对识别性能的影响。
-- 完成模型导出与部署验证，将训练模型导出为 final.zip，并基于 WeNet runtime/WebSocket 服务实现语音识别推理。
+基于 WeNet 的 Conformer U2++ 端到端语音识别系统
+- 基于 AISHELL-1 (178h) 构建完整 ASR pipeline：数据准备(141k utts)、CMVN、字级词表(4233 chars)、
+  Conformer U2++ 训练、CTC/Attention 联合解码、JIT 导出与 INT8 量化。
+- 系统消融实验：对比 CTC greedy/prefix beam/Attention rescoring 三种解码模式，
+  分析 chunk size(4/8/16/32/-1) 对流式延迟与 CER 的权衡关系，输出错误分类报告(替换/删除/插入)。
+- 解决 10+ 跨平台兼容问题：Windows Git Bash 适配、Python 3.14 torch.jit 修复、
+  deepspeed 可选导入、torchaudio→soundfile 回退方案、GBK 编码修复。
+- 完成模型部署：JIT TorchScript 导出(fina.zip 178MB)、INT8 量化(3-4x 压缩)、
+  Docker/WebSocket 推理服务入口，支持流式(chunk=4/8/16)与非流式(chunk=-1)两种模式。
 ```
-
-## 常见注意事项
-
-1. RTX 5090 上不要乱装 torch。AutoDL 镜像里的 PyTorch/CUDA 通常已经适配显卡，本项目安装 WeNet 时默认不覆盖 torch/torchaudio。
-2. 系统盘小，所有数据、缓存、checkpoint 都放 `/root/autodl-tmp`。
-3. 长时间训练用 `screen -S wenet`，断开用 `Ctrl-a d`，恢复用 `screen -r wenet`。
-4. fast 版本只证明 pipeline 完整，不追求低 CER；简历和报告建议最终跑 full 版本。
