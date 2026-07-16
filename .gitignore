@@ -1,0 +1,38 @@
+# === 大数据文件（不上传 GitHub） ===
+datasets/
+data/data_aishell.tgz
+data/resource_aishell.tgz
+
+# === 模型检查点 & 导出 ===
+*.pt
+*.jit
+*.zip
+!data/*.zip
+wenet_runtime_models/
+
+# === 训练输出 ===
+wenet/examples/aishell/s0/exp/
+wenet/examples/aishell/s0/data/
+wenet/examples/aishell/s0/saved_models/
+
+# === 缓存 ===
+.cache/
+*.log
+__pycache__/
+*.pyc
+*.pyo
+
+# === 系统 ===
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+debug_*.py
+_run_all.sh
+
+# === 环境 ===
+venv/
+env/
+*.egg-info/
