@@ -64,21 +64,15 @@
 
 ### ⚡ 流式解码性能概览
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <b>🔵 RTF 对比 (越低越好)</b><br>
-      <img src="https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison_new.png" width="100%">
-      <br><em>所有配置 RTF ≪ 1.0，实时推理能力充足</em>
-    </td>
-    <td align="center" width="50%">
-      <b>🟠 CER 对比 (越低越好)</b><br>
-      <img src="https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_per_chunk.png" width="100%">
-      <br><em>chunk 越小延迟越低，CER 略升</em>
-    </td>
-  </tr>
-</table>
+**RTF 对比 (越低越好)**
+![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison_new.png)
+*所有配置 RTF ≪ 1.0，实时推理能力充足*
 
+**CER 对比 (越低越好)**
+![CER per Chunk](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_per_chunk.png)
+*chunk 越小延迟越低，CER 略升*
+
+**CER vs Latency 双轴图**
 ![CER vs Latency](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_vs_latency.png)
 *chunk=16 在延迟 (640ms) 与精度 (CER 5.21%) 间取得最佳平衡，推荐用于实时场景。*
 
