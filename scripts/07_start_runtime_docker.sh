@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 MODEL_DIR="${MODEL_DIR:-$RUNTIME_MODEL_ROOT/aishell_u2pp_conformer}"
 PORT="${PORT:-10086}"

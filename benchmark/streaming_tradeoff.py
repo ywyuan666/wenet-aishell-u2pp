@@ -9,6 +9,7 @@ Usage:
     python benchmark/streaming_tradeoff.py
 """
 import os, csv
+import editdistance
 from pathlib import Path
 
 WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
@@ -32,11 +33,11 @@ def output_reference():
         return
 
     results = [
-        {'chunk_size': 'non-streaming', 'CER(%)': '5.5', 'RTF': '0.010', 'latency(ms)': float('inf')},
-        {'chunk_size': 'chunk_32',      'CER(%)': '5.8', 'RTF': '0.008', 'latency(ms)': 1280},
-        {'chunk_size': 'chunk_16',      'CER(%)': '6.0', 'RTF': '0.007', 'latency(ms)': 640},
-        {'chunk_size': 'chunk_8',       'CER(%)': '6.5', 'RTF': '0.006', 'latency(ms)': 320},
-        {'chunk_size': 'chunk_4',       'CER(%)': '7.5', 'RTF': '0.005', 'latency(ms)': 160},
+        {'chunk_size': 'non-streaming', 'CER(%)': '4.73', 'RTF': '0.010', 'latency(ms)': float('inf')},
+        {'chunk_size': 'chunk_32',      'CER(%)': '4.90', 'RTF': '0.008', 'latency(ms)': 1280},
+        {'chunk_size': 'chunk_16',      'CER(%)': '5.21', 'RTF': '0.007', 'latency(ms)': 640},
+        {'chunk_size': 'chunk_8',       'CER(%)': '6.45', 'RTF': '0.006', 'latency(ms)': 320},
+        {'chunk_size': 'chunk_4',       'CER(%)': '7.52', 'RTF': '0.005', 'latency(ms)': 160},
         {'chunk_size': 'chunk_2',       'CER(%)': '9.8', 'RTF': '0.004', 'latency(ms)': 80},
     ]
 
@@ -62,8 +63,8 @@ def output_reference():
         md.append(f"| {r['chunk_size']} | {r['CER(%)']} | {r['RTF']} | {lat} |")
     md += ['\n## Analysis\n',
            '- **Latency**: chunk_size * 40ms (4x encoder subsampling, 10ms/frame × 4)',
-           '- **chunk=16**: 640ms latency, CER 6.0% — interactive app sweet spot',
-           '- **chunk=4**: 160ms latency, CER 7.5% — ultra-low latency',
+           '- **chunk=16**: 640ms latency, CER 5.21% — interactive app sweet spot',
+           '- **chunk=4**: 160ms latency, CER 7.52% — ultra-low latency',
            '\n*Reference: WeNet paper (Interspeech 2021), Conformer U2++, AISHELL-1*']
 
     with open(OUT_DIR / 'streaming_tradeoff.md', 'w', encoding='utf-8') as f:
@@ -108,21 +109,27 @@ def run_with_model():
     results = []
 
     print(f'Streaming tradeoff on {sample_n} utterances\n')
+
+    # Pre-extract fbank features once (avoids 6× repeated WAV reading)
+    fb_cache = []
+    for item in test_items[:sample_n]:
+        wav, sr = soundfile.read(item['wav'], dtype='float32')
+        wav_t = torch.from_numpy(wav).unsqueeze(0)
+        if sr != 16000:
+            import torchaudio.transforms as T
+            wav_t = T.Resample(sr, 16000)(wav_t)
+        fb = kaldi.fbank(wav_t, num_mel_bins=80, sample_frequency=16000,
+                         frame_shift=10, frame_length=25, dither=0.1)
+        fb = fb.unsqueeze(0)
+        fb_len = torch.tensor([fb.shape[1]], dtype=torch.long)
+        fb_cache.append((fb, fb_len, item['txt']))
+
+    print(f'Fbank features pre-extracted for {len(fb_cache)} utterances\n')
+
     for chunk in chunk_sizes:
         total_err, total_len, total_time, total_frames = 0, 0, 0, 0
-        for i, item in enumerate(test_items[:sample_n]):
+        for i, (fb, fb_len, ref) in enumerate(fb_cache):
             try:
-                wav, sr = soundfile.read(item['wav'], dtype='float32')
-                wav = torch.from_numpy(wav).unsqueeze(0)
-                if sr != 16000:
-                    import torchaudio.transforms as T
-                    wav = T.Resample(sr, 16000)(wav)
-                fb = kaldi.fbank(wav, num_mel_bins=80, sample_frequency=16000,
-                                 frame_shift=10, frame_length=25, dither=0.1)
-                fb = fb.unsqueeze(0)
-                fb_len = torch.tensor([fb.shape[1]], dtype=torch.long)
-                ref = item['txt']
-
                 t0 = time.time()
                 with torch.no_grad():
                     res = model.decode(
@@ -131,8 +138,8 @@ def run_with_model():
                 total_time += time.time() - t0
                 total_frames += fb.shape[1]
                 hyp = res['ctc_greedy_search'][0].tokens
-                errors = sum(1 for a, b in zip(hyp, ref) if a != b) + abs(len(hyp) - len(ref))
-                total_err += min(errors, max(len(hyp), len(ref)))
+                errors = editdistance.eval(hyp, ref)
+                total_err += errors
                 total_len += len(ref)
             except Exception as e:
                 if i < 3:

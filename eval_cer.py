@@ -7,7 +7,7 @@ Usage:
     python eval_cer.py --subset 100               # first 100 test utts
     python eval_cer.py --subset -1                # all test utts
 """
-import torch, yaml, json, os, sys, soundfile, argparse
+import torch, yaml, json, os, sys, soundfile, argparse, editdistance
 
 WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
 S0_DIR = os.environ.get('WENET_S0_DIR', r'D:\wenet\wenet\examples\aishell\s0')
@@ -76,9 +76,8 @@ def main():
             hyp_text = results['ctc_greedy_search'][0].tokens
             ref_text = item['txt']
 
-            errors = sum(1 for a, b in zip(hyp_text, ref_text) if a != b)
-            errors += abs(len(hyp_text) - len(ref_text))
-            total_err += min(errors, max(len(hyp_text), len(ref_text)))
+            errors = editdistance.eval(hyp_text, ref_text)
+            total_err += errors
             total_len += len(ref_text)
             decoded.append(f'{item["key"]}\t{hyp_text}')
 

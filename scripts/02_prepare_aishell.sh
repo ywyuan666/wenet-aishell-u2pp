@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 cd "$WENET_ROOT/examples/aishell/s0"
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 echo "== System Info =="
 if command -v uname >/dev/null 2>&1; then

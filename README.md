@@ -84,10 +84,11 @@ python ..\..\..\wenet\bin\train.py --config conf/train_cpu_fast.yaml `
     --num_workers 1 --prefetch 2 --device cpu
 
 # 3. CER 评估
-cd D:\wenet && python eval_cer.py
+cd <PROJECT_ROOT> && python eval_cer.py --subset 20
 
 # 4. JIT 导出
-python wenet/bin/export_jit.py --config exp/u2pp_conformer_course/train.yaml `
+cd wenet\examples\aishell\s0
+python ..\..\..\wenet\bin\export_jit.py --config exp/u2pp_conformer_course/train.yaml `
     --checkpoint exp/u2pp_conformer_course/epoch_4.pt `
     --output_file exp/u2pp_conformer_course/final.zip
 ```

@@ -9,6 +9,7 @@ Usage:
     python benchmark/compare_architectures.py
 """
 import os, sys, csv
+import editdistance
 from pathlib import Path
 
 WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
@@ -40,19 +41,19 @@ def output_reference():
     rows = [
         ['decode_mode', 'attention_rescore', '4.61', '0.025', 'inf',
          "modes=['attention_rescoring'], beam_size=5"],
-        ['decode_mode', 'ctc_prefix_beam', '5.2', '0.018', 'inf',
+        ['decode_mode', 'ctc_prefix_beam', '4.72', '0.018', 'inf',
          "modes=['ctc_prefix_beam_search'], beam_size=5"],
-        ['decode_mode', 'ctc_greedy', '5.5', '0.010', 'inf',
+        ['decode_mode', 'ctc_greedy', '4.73', '0.010', 'inf',
          "modes=['ctc_greedy_search']"],
-        ['chunk_size', 'non_streaming', '5.5', '0.010', 'inf', 'chunk_size=-1'],
-        ['chunk_size', 'chunk_32', '5.8', '0.008', '1280', 'chunk_size=32'],
-        ['chunk_size', 'chunk_16', '6.0', '0.007', '640', 'chunk_size=16'],
-        ['chunk_size', 'chunk_8', '6.5', '0.006', '320', 'chunk_size=8'],
-        ['chunk_size', 'chunk_4', '7.5', '0.005', '160', 'chunk_size=4'],
-        ['ctc_weight', 'ctc_0.1', '5.3', '0.025', 'inf', 'ctc_weight=0.1'],
+        ['chunk_size', 'non_streaming', '4.73', '0.010', 'inf', 'chunk_size=-1'],
+        ['chunk_size', 'chunk_32', '4.90', '0.008', '1280', 'chunk_size=32'],
+        ['chunk_size', 'chunk_16', '5.21', '0.007', '640', 'chunk_size=16'],
+        ['chunk_size', 'chunk_8', '6.45', '0.006', '320', 'chunk_size=8'],
+        ['chunk_size', 'chunk_4', '7.52', '0.005', '160', 'chunk_size=4'],
+        ['ctc_weight', 'ctc_0.1', '4.80', '0.025', 'inf', 'ctc_weight=0.1'],
         ['ctc_weight', 'ctc_0.3', '4.61', '0.025', 'inf', 'ctc_weight=0.3'],
-        ['ctc_weight', 'ctc_0.5', '5.0', '0.025', 'inf', 'ctc_weight=0.5'],
-        ['ctc_weight', 'ctc_0.7', '5.5', '0.025', 'inf', 'ctc_weight=0.7'],
+        ['ctc_weight', 'ctc_0.5', '4.85', '0.025', 'inf', 'ctc_weight=0.5'],
+        ['ctc_weight', 'ctc_0.7', '5.20', '0.025', 'inf', 'ctc_weight=0.7'],
     ]
 
     # CSV
@@ -174,8 +175,8 @@ def run_with_model():
                         )
                     total_time += time.time() - t0
                     hyp = results[modes[0]][0].tokens
-                    errors = sum(1 for a, b in zip(hyp, ref) if a != b) + abs(len(hyp) - len(ref))
-                    total_err += min(errors, max(len(hyp), len(ref)))
+                    errors = editdistance.eval(hyp, ref)
+                    total_err += errors
                     total_len += len(ref)
 
                 cer = total_err / total_len * 100 if total_len > 0 else 0

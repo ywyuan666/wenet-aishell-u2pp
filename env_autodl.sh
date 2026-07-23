@@ -78,6 +78,13 @@ export RESOURCE_ARCHIVE="$DATA_DIR/resource_aishell.tgz"
 # ── 创建必要目录 ──
 mkdir -p "$AUTODL_DATA_ROOT" "$XDG_CACHE_HOME" "$PIP_CACHE_DIR" "$TORCH_HOME" "$HF_HOME" "$MODELSCOPE_CACHE" "$RUNTIME_MODEL_ROOT" "$AISHELL_ROOT"
 
+# ── 脚本级共享函数：source 后自动启用 GPU ──
+ensure_gpu_env() {
+    if $CUDA_AVAILABLE; then
+        export CUDA_VISIBLE_DEVICES=$CUDA_DEVICE
+    fi
+}
+
 echo "=== Environment Loaded ==="
 echo "PROJECT_ROOT     = $PROJECT_ROOT"
 echo "AUTODL_DATA_ROOT = $AUTODL_DATA_ROOT"

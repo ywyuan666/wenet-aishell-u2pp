@@ -22,6 +22,7 @@ import json
 import time
 import argparse
 import csv
+import traceback
 from pathlib import Path
 
 # Paths - auto-detect or env var override
@@ -55,8 +56,7 @@ def apply_wenet_patches():
     dl.DataLoader.__init__ = _patched_init
 
 
-def load_model(s0_dir, ckpt_path=None):
-    """Load WeNet ASRModel from checkpoint."""
+def load_model(s0_dir: str, ckpt_path: str | None = None):
     apply_wenet_patches()
 
     import torch
@@ -82,8 +82,7 @@ def load_model(s0_dir, ckpt_path=None):
     return model
 
 
-def extract_fbank(wav_path):
-    """Extract 80-dim Fbank using kaldi compliance."""
+def extract_fbank(wav_path: str) -> tuple:
     import torch
     import soundfile
     from torchaudio.compliance import kaldi
@@ -98,8 +97,7 @@ def extract_fbank(wav_path):
     return fb.unsqueeze(0), torch.tensor([fb.shape[0]], dtype=torch.long)
 
 
-def load_test_items(s0_dir, subset=None):
-    """Load AISHELL-1 test data list."""
+def load_test_items(s0_dir: str, subset: int | None = None) -> list:
     data_list = os.path.join(s0_dir, "data/test/data.list")
     if not os.path.exists(data_list):
         print(f"ERROR: test data list not found: {data_list}")
@@ -120,7 +118,12 @@ def load_test_items(s0_dir, subset=None):
     return items
 
 
-def compute_cer(hyp_tokens, ref_text):
+def sum_compute_chars(items):
+    """Sum total character count across all test items."""
+    return sum(len(item.get("txt", "")) for item in items)
+
+
+def compute_cer(hyp_tokens: list[str], ref_text: str) -> tuple[int, int]:
     """Compute character error rate between hypothesis and reference."""
     # Token-level comparison using edit distance
     m, n = len(ref_text), len(hyp_tokens)
@@ -136,8 +139,8 @@ def compute_cer(hyp_tokens, ref_text):
     return dp[m][n], m
 
 
-def eval_model(items, model, method, beam_size=1, chunk_size=-1,
-               ctc_weight=0.3, reverse_weight=0.3, verbose=False):
+def eval_model(items: list, model, method: str, beam_size: int = 1, chunk_size: int = -1,
+               ctc_weight: float = 0.3, reverse_weight: float = 0.3, verbose: bool = False):
     """
     Run evaluation with a specific decoding configuration.
     Returns average CER and total time.
@@ -146,6 +149,7 @@ def eval_model(items, model, method, beam_size=1, chunk_size=-1,
 
     total_errors = 0
     total_chars = 0
+    total_frames = 0
     total_time = 0.0
     skip_count = 0
 
@@ -165,6 +169,7 @@ def eval_model(items, model, method, beam_size=1, chunk_size=-1,
                     reverse_weight=reverse_weight,
                     methods=[method],
                 )
+            total_frames += fb.shape[1]
             elapsed = time.time() - t0
             total_time += elapsed
 
@@ -192,7 +197,8 @@ def eval_model(items, model, method, beam_size=1, chunk_size=-1,
         print(f"  Skipped {skip_count}/{len(items)} utterances due to errors")
 
     avg_cer = total_errors / total_chars * 100 if total_chars > 0 else 0
-    avg_rtf = total_time / total_chars if total_chars > 0 else 0
+    audio_duration = total_frames * 0.01  # frame_shift=10ms
+    avg_rtf = total_time / audio_duration if audio_duration > 0 else 0
 
     return avg_cer, total_time, avg_rtf
 
@@ -205,6 +211,8 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Print per-utterance results")
     parser.add_argument("--checkpoint", default=None,
                         help="Use checkpoint instead of JIT model. Default: JIT first, fallback to checkpoint.")
+    parser.add_argument("--chunk", type=int, default=None,
+                        help="Override decoding_chunk_size for all configs. E.g. 16 for streaming.")
     args = parser.parse_args()
 
     # Load model
@@ -236,6 +244,13 @@ def main():
     print(f"Decoding Evaluation: {len(items)} utterances")
     print(f"{'=' * 70}")
 
+    if args.chunk is not None:
+        print(f"  Overriding chunk_size to {args.chunk} for all configs")
+        eval_configs = [
+            (m, b, args.chunk, cw, rw, f"{lbl} (chunk={args.chunk})")
+            for m, b, _, cw, rw, lbl in eval_configs
+        ]
+
     results = []
     print(f"\n{'Config':>35}  {'CER(%)':>8}  {'RTF':>8}  {'Time(s)':>8}  {'#Chars':>8}")
     print(f"{'-' * 35}  {'-' * 8}  {'-' * 8}  {'-' * 8}  {'-' * 8}")
@@ -259,7 +274,6 @@ def main():
             })
         except Exception as e:
             print(f"FAILED: {e}")
-            import traceback
             traceback.print_exc()
 
     # Print summary table

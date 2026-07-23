@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 python "$PROJECT_ROOT/tools/summarize_wenet_results.py" \
   --exp "$WENET_ROOT/examples/aishell/s0/$EXP_DIR" \

@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 if [ -d "$WENET_ROOT/.git" ]; then
   echo "WeNet already exists: $WENET_ROOT"

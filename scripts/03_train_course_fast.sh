@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source ./env_autodl.sh
+ensure_gpu_env
 
 cd "$WENET_ROOT/examples/aishell/s0"
 
@@ -18,10 +19,6 @@ echo "EXP_DIR=$EXP_DIR"
 echo "CUDA_AVAILABLE=$CUDA_AVAILABLE"
 echo "SUBSET_UTTS=$SUBSET_UTTS"
 
-# GPU/CPU 自适应：统一 run.sh 调用
-if $CUDA_AVAILABLE; then
-  export CUDA_VISIBLE_DEVICES=$CUDA_DEVICE
-fi
 bash run.sh \
   --stage 4 \
   --stop_stage 4 \
