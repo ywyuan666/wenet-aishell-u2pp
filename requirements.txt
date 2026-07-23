@@ -1,0 +1,28 @@
+# WeNet Conformer U2++ AISHELL-1 — Core Dependencies
+# Install: pip install -r requirements.txt
+
+# === Deep Learning ===
+torch>=2.0.0,<3.0
+torchaudio>=2.0.0,<3.0
+torchvision>=0.15.0,<1.0       # dependency for torchaudio
+
+# === Audio Processing ===
+soundfile>=0.12.0               # audio I/O fallback
+librosa>=0.9.0                  # audio analysis (optional)
+
+# === Data & Config ===
+PyYAML>=6.0
+tensorboard>=2.10.0             # training logging
+tqdm>=4.60.0
+
+# === Decoding & Evaluation ===
+editdistance>=0.6.0              # CER/WER computation (optional, uses built-in fallback)
+
+# === Optional: streaming simulation ===
+websockets>=10.0                 # for WebSocket inference demo
+
+# === Optional: INT8 quantization ===
+# torch already supports dynamic quantization natively
+
+# === Optional: DeepSpeed (GPU only) ===
+# deepspeed>=0.10.0              # uncomment for multi-GPU training

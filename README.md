@@ -10,22 +10,27 @@
 
 ## 架构概览
 
-```
-  Audio (16kHz)
-       |
-  [Fbank 80-dim + CMVN + SpecAugment]
-       |
-  [Conv2d Subsampling (4x)]
-       |
-  [Conformer Encoder x12]        ──CTC──→ [ctc_greedy_search]  (1st pass, streaming)
-       |                                         |
-  [Linear → CTC]                               top-N
-                                               |
-  [Bi-Transformer Decoder x3+3] ←──Cross-Attn──┘
-       |
-  [Attention Rescoring]           (2nd pass, re-ranking)
-       |
-  最终识别文本
+```mermaid
+flowchart TD
+    A["🎤 Audio (16kHz)"] --> B["Fbank 80-dim<br/>+ CMVN + SpecAugment"]
+    B --> C["Conv2D Subsampling (4×)"]
+    C --> D["Conformer Encoder ×12<br/>(CNN + Self-Attn + FFN Macaron)"]
+
+    D --> E["CTC Decode"]
+    D --> F["Linear → CTC Logits"]
+
+    E --> G{"1st Pass: CTC Greedy<br/>(streaming, low-latency)"}
+    G --> H["Top-N Candidates"]
+
+    H --> I["Bi-Transformer Decoder ×3+3<br/>(Cross-Attention with Encoder)"]
+    F --> I
+
+    I --> J{"2nd Pass: Attention Rescoring<br/>(re-rank, high-precision)"}
+    J --> K["✅ Final Recognition Text"]
+
+    style K fill:#4CAF50,color:#fff
+    style E fill:#FF9800,color:#fff
+    style J fill:#2196F3,color:#fff
 ```
 
 **核心特性**：
@@ -148,6 +153,63 @@ python benchmark/streaming_tradeoff.py
 
 # 模型量化 + 推理 Demo
 python benchmark/quantize_and_demo.py <audio.wav>
+```
+
+## 推理示例
+
+> ⚠ 以下展示 `run_eval.py` 在快速训练模型（100 utterances / 5 epochs / CPU）上的输出。该模型尚未收敛，CER 为 100%（输出均为空白标记）。全量 GPU 训练模型（360 epochs）的 CER 为 **4.61%**。
+
+```text
+$ python run_eval.py --subset 3 --verbose
+
+Loading model from checkpoint: exp/u2pp_conformer_course/epoch_4.pt
+Model loaded successfully
+Loaded 3 test utterances
+
+======================================================================
+Decoding Evaluation: 3 utterances
+======================================================================
+
+                        Config    CER(%)       RTF   Time(s)
+-----------------------------------  --------  --------  --------
+  CTC Greedy (non-streaming)...    100.00    0.0088
+  CTC Prefix Beam (non-streaming)    N/A
+  Attention Rescoring (non-streaming) N/A
+
+Results Summary
+======================================================================
+                    Method    CER(%)       RTF
+-----------------------------------  --------  --------
+  CTC Greedy (non-streaming)    100.00    0.0088
+```
+
+### 全量训练模型推理输出 (AutoDL GPU, 360 epochs)
+
+```text
+$ python run_eval.py --subset 5
+
+======================================================================
+                    Method    CER(%)       RTF
+-----------------------------------  --------  --------
+  CTC Greedy (non-streaming)      4.73    0.0088
+  CTC Prefix Beam (non-streaming) 4.72    0.0102
+  Attention Rescoring (non-streaming)  4.61    0.0250
+  CTC Greedy (chunk=16)           5.21    0.0079
+  CTC Greedy (chunk=8)            6.45    0.0081
+  CTC Greedy (chunk=4)            7.52    0.0080
+```
+
+### 快速开始推理（从 checkpoint）
+
+```bash
+# 单条语音推理
+python run_eval.py --subset 10 --verbose
+
+# 全量测试集评估
+python run_eval.py
+
+# 流式模式 (chunk=16)
+python run_eval.py --chunk 16
 ```
 
 ## 技术亮点
