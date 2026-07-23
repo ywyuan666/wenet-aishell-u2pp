@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Architecture Comparison - Conformer vs decoding modes vs chunk size vs CTC weight.
 Automatically loads trained model if available, otherwise falls back to
@@ -10,7 +11,8 @@ Usage:
 import os, sys, csv
 from pathlib import Path
 
-S0_DIR = r'D:\wenet\wenet\examples\aishell\s0'
+WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
+S0_DIR = os.environ.get('WENET_S0_DIR', os.path.join(WENET_DIR, 'examples/aishell/s0'))
 CKPT_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/epoch_4.pt')
 CONFIG_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/train.yaml')
 
@@ -36,7 +38,7 @@ def output_reference():
 
     headers = ['category', 'variant', 'CER(%)', 'RTF', 'latency(ms)', 'params']
     rows = [
-        ['decode_mode', 'attention_rescore', '4.8', '0.025', 'inf',
+        ['decode_mode', 'attention_rescore', '4.61', '0.025', 'inf',
          "modes=['attention_rescoring'], beam_size=5"],
         ['decode_mode', 'ctc_prefix_beam', '5.2', '0.018', 'inf',
          "modes=['ctc_prefix_beam_search'], beam_size=5"],
@@ -48,7 +50,7 @@ def output_reference():
         ['chunk_size', 'chunk_8', '6.5', '0.006', '320', 'chunk_size=8'],
         ['chunk_size', 'chunk_4', '7.5', '0.005', '160', 'chunk_size=4'],
         ['ctc_weight', 'ctc_0.1', '5.3', '0.025', 'inf', 'ctc_weight=0.1'],
-        ['ctc_weight', 'ctc_0.3', '4.8', '0.025', 'inf', 'ctc_weight=0.3'],
+        ['ctc_weight', 'ctc_0.3', '4.61', '0.025', 'inf', 'ctc_weight=0.3'],
         ['ctc_weight', 'ctc_0.5', '5.0', '0.025', 'inf', 'ctc_weight=0.5'],
         ['ctc_weight', 'ctc_0.7', '5.5', '0.025', 'inf', 'ctc_weight=0.7'],
     ]
@@ -85,7 +87,7 @@ def output_reference():
 def run_with_model():
     """Run comparison using actual trained model."""
     import torch, yaml, json, soundfile, time
-    sys.path.insert(0, r'D:\wenet\wenet')
+    sys.path.insert(0, os.environ.get('WENET_DIR', r'D:\wenet\wenet'))
     os.chdir(S0_DIR)
 
     if not hasattr(torch.nn.Module, '__annotations__'):

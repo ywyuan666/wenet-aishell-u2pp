@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Convert JSONL format to WeNet data.list format.
+
+Input JSONL format: {"audio_filepath": "...", "text": "..."}
+Output format: {"key": "...", "wav": "...", "txt": "..."}
+
+Usage:
+    python tools/jsonl_to_wenet_data.py --jsonl data.jsonl --out-dir data/
+"""
 import argparse
 import json
 from pathlib import Path

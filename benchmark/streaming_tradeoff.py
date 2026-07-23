@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Streaming vs Non-streaming Latency-Accuracy Tradeoff Curve.
 Automatically uses trained model if available, otherwise falls back to
@@ -10,7 +11,8 @@ Usage:
 import os, csv
 from pathlib import Path
 
-S0_DIR = r'D:\wenet\wenet\examples\aishell\s0'
+WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
+S0_DIR = os.environ.get('WENET_S0_DIR', os.path.join(WENET_DIR, 'examples/aishell/s0'))
 CKPT_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/epoch_4.pt')
 
 OUT_DIR = Path('results')
@@ -73,8 +75,8 @@ def output_reference():
 
 def run_with_model():
     """Run streaming tradeoff using actual trained model."""
-    import torch, yaml, json, soundfile, time
-    sys.path.insert(0, r'D:\wenet\wenet')
+    import torch, yaml, json, soundfile, time, sys
+    sys.path.insert(0, os.environ.get('WENET_DIR', r'D:\wenet\wenet'))
     os.chdir(S0_DIR)
 
     if not hasattr(torch.nn.Module, '__annotations__'):
@@ -107,7 +109,7 @@ def run_with_model():
 
     print(f'Streaming tradeoff on {sample_n} utterances\n')
     for chunk in chunk_sizes:
-        total_err, total_len, total_time = 0, 0, 0
+        total_err, total_len, total_time, total_frames = 0, 0, 0, 0
         for i, item in enumerate(test_items[:sample_n]):
             try:
                 wav, sr = soundfile.read(item['wav'], dtype='float32')
@@ -127,15 +129,17 @@ def run_with_model():
                         methods=['ctc_greedy_search'], speech=fb, speech_lengths=fb_len,
                         beam_size=1, decoding_chunk_size=chunk)
                 total_time += time.time() - t0
+                total_frames += fb.shape[1]
                 hyp = res['ctc_greedy_search'][0].tokens
                 errors = sum(1 for a, b in zip(hyp, ref) if a != b) + abs(len(hyp) - len(ref))
                 total_err += min(errors, max(len(hyp), len(ref)))
                 total_len += len(ref)
-            except Exception:
-                pass
+            except Exception as e:
+                if i < 3:
+                    print(f'    [{i}] SKIP: {e}')
 
         cer = total_err / total_len * 100 if total_len > 0 else 0
-        rtf = total_time / (total_len * 0.01) if total_len > 0 else 0
+        rtf = total_time / (total_frames * 0.01) if total_frames > 0 else 0
         latency = chunk * 40 if chunk > 0 else float('inf')
         label = 'non-streaming' if chunk == -1 else f'chunk_{chunk}'
 

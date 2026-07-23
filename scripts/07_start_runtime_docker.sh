@@ -26,5 +26,5 @@ echo "This uses the official wenet mini runtime image. If the upstream image com
 docker run --gpus all --rm -it \
   -p "$PORT:$PORT" \
   -v "$MODEL_DIR:/home/wenet/model" \
-  wenetorg/wenet-mini:latest \
+  wenetorg/wenet-mini:v2.0.2 \
   bash /home/run.sh

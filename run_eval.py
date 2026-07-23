@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Standalone evaluation script for WeNet Conformer U2++ model.
 Runs on the full AISHELL-1 test set (or a subset) and computes CER for
@@ -23,9 +24,9 @@ import argparse
 import csv
 from pathlib import Path
 
-# Paths - adjust for your environment
-S0_DIR = r"D:/wenet/wenet/examples/aishell/s0"
-WENET_DIR = r"D:/wenet/wenet"
+# Paths - auto-detect or env var override
+WENET_DIR = os.environ.get("WENET_DIR", r"D:/wenet/wenet")
+S0_DIR = os.environ.get("WENET_S0_DIR", os.path.join(WENET_DIR, "examples/aishell/s0"))
 CKPT_PATH = os.path.join(S0_DIR, "exp/u2pp_conformer_course/epoch_4.pt")
 
 # ── Compatibility patches for WeNet on Python 3.14 / torch 2.9 ──
@@ -294,10 +295,6 @@ def main():
     print(f"Results saved to {md_path}")
 
     print("\nDone!")
-
-
-def sum_compute_chars(items):
-    return sum(len(item.get("txt", "")) for item in items)
 
 
 if __name__ == "__main__":

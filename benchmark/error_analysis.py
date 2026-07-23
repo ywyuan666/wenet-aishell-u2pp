@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Error Analysis - Classify ASR errors by type and pattern.
 Automatically uses trained model if available, otherwise shows reference analysis.
@@ -9,7 +10,8 @@ Usage:
 import os
 from pathlib import Path
 
-S0_DIR = r'D:\wenet\wenet\examples\aishell\s0'
+WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
+S0_DIR = os.environ.get('WENET_S0_DIR', os.path.join(WENET_DIR, 'examples/aishell/s0'))
 CKPT_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/epoch_4.pt')
 
 OUT_DIR = Path('results')
@@ -32,7 +34,7 @@ def output_reference():
 
 ## Summary
 - Total errors: 186
-- CER: 4.8%
+- CER: 4.61%
 - Test utterances analyzed: 50
 
 ## Error Type Distribution
@@ -72,9 +74,9 @@ Insertion (17.7%) is the least common.
 
 def run_with_model():
     """Run error analysis on actual trained model."""
-    import torch, yaml, json, soundfile
+    import torch, yaml, json, soundfile, sys
     from collections import Counter, defaultdict
-    sys.path.insert(0, r'D:\wenet\wenet')
+    sys.path.insert(0, os.environ.get('WENET_DIR', r'D:\wenet\wenet'))
     os.chdir(S0_DIR)
 
     if not hasattr(torch.nn.Module, '__annotations__'):
@@ -168,7 +170,7 @@ def run_with_model():
             errors_by_length[bucket]['total'] += len(ref)
 
         except Exception as e:
-            if i < 3:
+            if i < 3 or len(test_items) > 50:
                 print(f'  Error {i}: {e}')
 
     cer = total_err / total_len * 100 if total_len > 0 else 0

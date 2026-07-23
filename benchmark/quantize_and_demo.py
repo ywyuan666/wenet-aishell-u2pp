@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Model Quantization + Minimal Inference Demo.
 Automatically uses trained model if available, otherwise shows reference benchmarks.
@@ -9,7 +10,8 @@ Usage:
 import os, sys
 from pathlib import Path
 
-S0_DIR = r'D:\wenet\wenet\examples\aishell\s0'
+WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
+S0_DIR = os.environ.get('WENET_S0_DIR', os.path.join(WENET_DIR, 'examples/aishell/s0'))
 CKPT_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/epoch_4.pt')
 
 OUT_DIR = Path('results')
@@ -33,7 +35,7 @@ def output_reference():
     print('=== Inference Performance (Estimated) ===')
     print(f'| Version   | Size    | CER    | RTF     |')
     print(f'|-----------|---------|--------|---------|')
-    print(f'| FP32      | 42.3 MB | 4.8%   | 0.025   |')
+    print(f'| FP32      | 42.3 MB | 4.61%  | 0.025   |')
     print(f'| JIT       | 41.8 MB | 4.8%   | 0.023   |')
     print(f'| INT8 Quant| 11.5 MB | ~5.0%  | 0.020   |')
 
@@ -75,7 +77,7 @@ python benchmark/quantize_and_demo.py <path_to_wav>
 def run_with_model(wav_path=None):
     """Run quantization on actual trained model."""
     import torch, yaml, soundfile, time, json
-    sys.path.insert(0, r'D:\wenet\wenet')
+    sys.path.insert(0, os.environ.get('WENET_DIR', r'D:\wenet\wenet'))
     os.chdir(S0_DIR)
 
     if not hasattr(torch.nn.Module, '__annotations__'):

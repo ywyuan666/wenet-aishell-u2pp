@@ -10,17 +10,14 @@ echo "== Decode and CER evaluation =="
 echo "EXP_DIR=$EXP_DIR"
 echo "AVERAGE_NUM=$AVERAGE_NUM"
 
+# GPU/CPU 自适应
 if $CUDA_AVAILABLE; then
-  CUDA_VISIBLE_DEVICES=$CUDA_DEVICE bash run.sh \
-    --stage 5 --stop_stage 5 --data "$AISHELL_ROOT" --data_type "$DATA_TYPE" \
-    --nj "$NJ" --num_workers "$NUM_WORKERS" --train_config "$TRAIN_CONFIG" \
-    --dir "$EXP_DIR" --average_num "$AVERAGE_NUM"
-else
-  bash run.sh \
-    --stage 5 --stop_stage 5 --data "$AISHELL_ROOT" --data_type "$DATA_TYPE" \
-    --nj "$NJ" --num_workers "$NUM_WORKERS" --train_config "$TRAIN_CONFIG" \
-    --dir "$EXP_DIR" --average_num "$AVERAGE_NUM"
+  export CUDA_VISIBLE_DEVICES=$CUDA_DEVICE
 fi
+bash run.sh \
+  --stage 5 --stop_stage 5 --data "$AISHELL_ROOT" --data_type "$DATA_TYPE" \
+  --nj "$NJ" --num_workers "$NUM_WORKERS" --train_config "$TRAIN_CONFIG" \
+  --dir "$EXP_DIR" --average_num "$AVERAGE_NUM"
 
 python "$PROJECT_ROOT/tools/summarize_wenet_results.py" \
   --exp "$WENET_ROOT/examples/aishell/s0/$EXP_DIR" \

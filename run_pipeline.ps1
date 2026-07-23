@@ -11,7 +11,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = "D:\wenet"
+$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { "D:\wenet" }
 $GitBash = "C:\Program Files\Git\bin\bash.exe"
 
 # Colors
@@ -30,7 +30,7 @@ if (-not (Test-Path $GitBash)) {
 function Invoke-Bash {
     param([string]$ScriptPath, [string]$Description)
     Say-Step $Description
-    $bashScript = "cd /d/wenet; source ./env_autodl.sh; bash $ScriptPath"
+    $bashScript = "cd /$($ProjectRoot.Replace(':','').Replace('\','/')); source ./env_autodl.sh; bash $ScriptPath"
     & $GitBash -c $bashScript
     if ($LASTEXITCODE -ne 0) {
         Say-Err "Script failed: $ScriptPath"
@@ -96,6 +96,6 @@ Write-Host "  Pipeline Complete! Time: $($elapsed.ToString('hh\:mm\:ss'))" -Fore
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Results:" -ForegroundColor White
-Write-Host "  CER Report: D:\wenet\results_summary.md" -ForegroundColor Yellow
-Write-Host "  Checkpoints: D:\wenet\wenet\examples\aishell\s0\exp\" -ForegroundColor Yellow
-Write-Host "  Runtime Models: D:\wenet\wenet_runtime_models\" -ForegroundColor Yellow
+Write-Host "  CER Report: $ProjectRoot\results_summary.md" -ForegroundColor Yellow
+Write-Host "  Checkpoints: $ProjectRoot\wenet\examples\aishell\s0\exp\" -ForegroundColor Yellow
+Write-Host "  Runtime Models: $ProjectRoot\wenet_runtime_models\" -ForegroundColor Yellow

@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Create a subset data.list by selecting the first N entries.
+
+Usage:
+    python tools/make_subset_data_list.py --input data.list --output subset.list --num 100
+"""
 import argparse
 import random
 from pathlib import Path

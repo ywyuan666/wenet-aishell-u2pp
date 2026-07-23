@@ -3,7 +3,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File .\setup_local.ps1
 # ============================================================
 $ErrorActionPreference = "Stop"
-$ProjectRoot = "D:\wenet"
+$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { "D:\wenet" }
 Set-Location $ProjectRoot
 
 function Say-Step  { param($msg) Write-Host ("=== " + $msg + " ===") -ForegroundColor Cyan }

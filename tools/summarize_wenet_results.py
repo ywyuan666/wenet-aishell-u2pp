@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Parse WeNet decoder output (text + cer_result.txt) into a structured summary.
+
+Usage:
+    python tools/summarize_wenet_results.py --exp exp/u2pp_conformer_course/dec_test --out summary.md
+"""
 import argparse
 import re
 from pathlib import Path
