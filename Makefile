@@ -1,5 +1,6 @@
-.PHONY: help train train-course train-full finetune eval benchmark \
-        test plot serve install lint clean
+.PHONY: help install train train-course train-full finetune eval \
+        benchmark test test-all clean clean-all plot serve lint \
+        gradio gradio-share hf-convert hf-verify hf-push
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -8,10 +9,13 @@ help:  ## Show this help
 install:  ## Install in dev mode with all extras
 	pip install -e ".[all]"
 
-train-course:  ## Fast course training (3000 utts, quick iteration)
+train:  ## Run full training pipeline (alias for train-full)
+	$(MAKE) train-full
+
+train-course:  ## Fast course training (~100 utts, pipeline verification)
 	bash scripts/03_train_course_fast.sh
 
-train-full:  ## Full AISHELL-1 training (120k utts)
+train-full:  ## Full AISHELL-1 training (141k utts, 360 epochs, GPU)
 	bash scripts/03_train_full.sh
 
 finetune:  ## Fine-tune from a checkpoint (set CHECKPOINT env var)
@@ -26,14 +30,15 @@ benchmark:  ## Run all benchmark scripts
 	python benchmark/error_analysis.py
 	python benchmark/quantize_and_demo.py
 
-test:  ## Run pytest on CER / data-loading / fbank tests
-	python -m pytest tests/ -v --tb=short -x
+test:  ## Run pytest on CER + data-loading tests
+	python -m pytest tests/test_cer.py tests/test_data_loading.py -v --tb=short -x
 
-test-all:  ## Run all tests including slow integration tests
-	python -m pytest tests/ -v --tb=short --runslow
+test-all:  ## Run all tests including slow/fbank integration tests
+	python -m pytest tests/test_cer.py tests/test_data_loading.py tests/test_fbank.py -v --tb=short -x
 
-plot:  ## Generate benchmark visualization charts
+plot:  ## Generate publication-quality benchmark charts
 	python benchmark/plot_results.py --output figures
+	python benchmark/gen_arch_diagram.py
 
 serve:  ## Start streaming ASR server (chunk=16, port=8765)
 	python asr_server.py --chunk 16 --port 8765
@@ -59,5 +64,11 @@ lint:  ## Check shell and Python syntax
 	-flake8 eval_cer.py run_eval.py tools/ benchmark/ --config=.flake8
 	python -m pytest tests/ --collect-only -q 2>/dev/null || true
 
-clean:  ## Remove generated results and artifacts
+clean:  ## Remove regenerable artifacts (figures, cache)
+	rm -rf figures/ __pycache__ .pytest_cache
+	@echo "  results/ is preserved (contains validated benchmark data)"
+	@echo "  Use 'make clean-all' to also remove results/ if needed"
+
+clean-all:  ## Remove all generated data including validated results
 	rm -rf results/*.md results/*.csv figures/ __pycache__ .pytest_cache
+	@echo "  results/ cleared. Re-run benchmark scripts to regenerate."

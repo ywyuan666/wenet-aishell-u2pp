@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Large data files
+datasets/
+data/
+*.wav
+*.pcm
+*.flac
+*.mp3
+
+# Model checkpoints (too large for Docker context)
+*.pt
+*.zip
+*.onnx
+hf_model/
+
+# Results & generated artifacts
+results/*.md
+results/*.csv
+figures/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
