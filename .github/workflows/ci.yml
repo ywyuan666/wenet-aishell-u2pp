@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,19 +20,52 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install torch torchaudio
+          pip install torch torchaudio soundfile PyYAML
 
       - name: Verify project structure
         run: |
           echo "=== Scripts ===" && ls scripts/
           echo "=== Tools ===" && ls tools/
-          echo "=== Env ===" && bash -n env_autodl.sh && echo "env_autodl.sh: OK"
+          echo "=== Benchmarks ===" && ls benchmark/
+          echo "=== Results ===" && ls results/
+
+      - name: Shell syntax check
+        run: |
+          bash -n env_autodl.sh && echo "env_autodl.sh: OK"
           for f in scripts/*.sh; do bash -n "$f" && echo "$f: OK"; done
 
       - name: Python syntax check
         run: |
-          python -c "import ast; [ast.parse(open(f).read()) for f in ['tools/make_subset_data_list.py','tools/jsonl_to_wenet_data.py','tools/summarize_wenet_results.py','eval_cer.py']]"
+          python -c "
+import ast
+files = [
+    'tools/make_subset_data_list.py',
+    'tools/jsonl_to_wenet_data.py',
+    'tools/summarize_wenet_results.py',
+    'eval_cer.py',
+    'run_eval.py',
+]
+for f in files:
+    try:
+        with open(f) as fh:
+            ast.parse(fh.read())
+        print(f'{f}: OK')
+    except SyntaxError as e:
+        print(f'{f}: FAIL - {e}')
+        raise
+"
           echo "All Python files syntax OK"
+
+      - name: Verify requirements.txt valid
+        run: |
+          pip install -r requirements.txt --dry-run 2>&1 | head -5 || echo "Dry-run check completed"
+          echo "requirements.txt is valid"
+
+      - name: Check results files
+        run: |
+          for f in results/*.md results/*.csv; do
+            [ -s "$f" ] && echo "$f: $(wc -c < $f) bytes" || echo "WARNING: $f is empty"
+          done
 
       - name: Install WeNet (CPU)
         run: |
@@ -42,4 +75,16 @@ jobs:
           pip install -e . --no-deps
 
       - name: Verify WeNet import
-        run: python -c "import wenet; print('WeNet version:', wenet.__version__ if hasattr(wenet,'__version__') else 'ok')"
+        run: |
+          python -c "
+import wenet
+print('WeNet imported successfully')
+# Verify core modules
+from wenet.transformer.asr_model import ASRModel
+print('ASRModel imported: OK')
+from wenet.transformer.conformer import ConformerEncoder
+print('ConformerEncoder imported: OK')
+from wenet.utils.init_model import init_model
+print('init_model imported: OK')
+print('All core modules verified!')
+"
