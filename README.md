@@ -62,10 +62,25 @@
 ![Architecture Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/architecture_comparison.png)
 *Attention Rescoring 取得最优 CER 4.61%，CTC Greedy 速度最快 (RTF 0.0088)。*
 
-### ⚡ 各 Chunk 的 RTF 对比
+### ⚡ 流式解码性能概览
 
-![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison.png)
-*所有流式配置的 RTF 均远小于 1.0，实时推理能力充足。*
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <b>🔵 RTF 对比 (越低越好)</b><br>
+      <img src="https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison_new.png" width="100%">
+      <br><em>所有配置 RTF ≪ 1.0，实时推理能力充足</em>
+    </td>
+    <td align="center" width="50%">
+      <b>🟠 CER 对比 (越低越好)</b><br>
+      <img src="https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_per_chunk.png" width="100%">
+      <br><em>chunk 越小延迟越低，CER 略升</em>
+    </td>
+  </tr>
+</table>
+
+![CER vs Latency](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_vs_latency.png)
+*chunk=16 在延迟 (640ms) 与精度 (CER 5.21%) 间取得最佳平衡，推荐用于实时场景。*
 
 ---
 

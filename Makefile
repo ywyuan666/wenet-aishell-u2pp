@@ -39,6 +39,7 @@ test-all:  ## Run all tests including slow/fbank integration tests
 plot:  ## Generate publication-quality benchmark charts
 	python benchmark/plot_results.py --output figures
 	python benchmark/gen_arch_diagram.py
+	python benchmark/gen_rtf_charts.py
 
 serve:  ## Start streaming ASR server (chunk=16, port=8765)
 	python asr_server.py --chunk 16 --port 8765
