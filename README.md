@@ -65,7 +65,7 @@
 ### ⚡ 流式解码性能概览
 
 **RTF 对比 (越低越好)**
-![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison_new.png)
+![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison.png)
 *所有配置 RTF ≪ 1.0，实时推理能力充足*
 
 **CER 对比 (越低越好)**
