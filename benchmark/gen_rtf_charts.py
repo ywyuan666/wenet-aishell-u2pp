@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate lightweight RTF & CER comparison charts (multi-image approach)."""
+"""Generate individual metric cards for each streaming config — one image per chunk."""
 
 from pathlib import Path
 import matplotlib
@@ -11,110 +11,107 @@ OUT = Path("figures")
 OUT.mkdir(parents=True, exist_ok=True)
 
 # ── Data ──
-chunks = ["non-streaming", "chunk_32", "chunk_16", "chunk_8", "chunk_4"]
-rtfs   = [0.0088, 0.0090, 0.0079, 0.0081, 0.0080]
-cers   = [4.61,   4.90,   5.21,   6.45,   7.52]
-colors_rtf = ["#1a76c4", "#2ecc71", "#e67e22", "#9b59b6", "#e74c3c"]
-
-# ── Style ──
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.size": 14,
-    "axes.titlesize": 16,
-    "axes.labelsize": 14,
-})
+configs = [
+    ("Non-Streaming",  "∞",  4.61, 0.0088, "#1a76c4"),
+    ("Chunk 32",       "1280", 4.90, 0.0090, "#2ecc71"),
+    ("Chunk 16",       "640",  5.21, 0.0079, "#e67e22"),
+    ("Chunk 8",        "320",  6.45, 0.0081, "#9b59b6"),
+    ("Chunk 4",        "160",  7.52, 0.0080, "#e74c3c"),
+]
 
 def save(fig, name):
     path = OUT / name
-    fig.savefig(path, dpi=120, bbox_inches="tight", facecolor="white")
+    fig.savefig(path, dpi=130, bbox_inches="tight", facecolor="white", pad_inches=0.3)
     print(f"[OK] {path} ({path.stat().st_size // 1024} KB)")
     plt.close(fig)
 
-# ═══════════════════════════════════════════
-#  Chart 1: RTF Bar Chart (simple, clean)
-# ═══════════════════════════════════════════
-fig, ax = plt.subplots(figsize=(10, 5.5))
+# ── One compact card per config ──
+for name, lat, cer, rtf, color in configs:
+    fig, ax = plt.subplots(figsize=(4, 2.2))
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("#f8f9fa")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+
+    # Title bar
+    ax.add_patch(plt.Rectangle((0, 0.82), 1, 0.18, color=color, alpha=0.85,
+                                transform=ax.transData, zorder=2))
+    ax.text(0.5, 0.91, name, ha="center", va="center", fontsize=13,
+            fontweight="bold", color="white", transform=ax.transData)
+
+    # Metrics
+    lines = [
+        ("CER", f"{cer:.2f}%", "#2c3e50"),
+        ("Latency", lat + " ms", "#2c3e50"),
+        ("RTF", f"{rtf:.4f}", "#2c3e50"),
+    ]
+    for i, (label, value, c) in enumerate(lines):
+        y_pos = 0.60 - i * 0.22
+        ax.text(0.12, y_pos, label, ha="left", va="center", fontsize=9,
+                color="#7f8c8d", transform=ax.transData)
+        ax.text(0.88, y_pos, value, ha="right", va="center", fontsize=11,
+                fontweight="bold", color=c, transform=ax.transData)
+        # Divider
+        if i < len(lines) - 1:
+            ax.axhline(y=y_pos - 0.09, xmin=0.08, xmax=0.92,
+                       color="#e0e0e0", lw=0.5)
+
+    # RTF bar (small indicator at bottom)
+    bar_max = 0.010
+    bar_width = 0.76
+    bar_x = 0.12
+    bar_y = 0.04
+    ax.add_patch(plt.Rectangle((bar_x, bar_y), bar_width, 0.08,
+                                color="#e8e8e8", ec="none", lw=0,
+                                transform=ax.transData, zorder=1))
+    ax.add_patch(plt.Rectangle((bar_x, bar_y), bar_width * rtf / bar_max, 0.08,
+                                color=color, alpha=0.8, ec="none", lw=0,
+                                transform=ax.transData, zorder=2))
+    ax.text(bar_x + bar_width / 2, bar_y + 0.04, f"RTF bar (max={bar_max})",
+            ha="center", va="center", fontsize=6.5, color="#95a5a6",
+            transform=ax.transData)
+
+    # Tag
+    ax.text(0.5, -0.08, "All RTF ≪ 1.0 — real-time capable",
+            ha="center", va="top", fontsize=7, color="#b0b0b0",
+            fontstyle="italic", transform=ax.transData)
+
+    safe_name = name.lower().replace(" ", "_").replace("-", "_")
+    save(fig, f"card_{safe_name}.png")
+
+# ── Also regenerate the combined small RTF bar chart (compact) ──
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.size": 12,
+    "axes.titlesize": 14,
+    "axes.labelsize": 12,
+})
+
+chunks = ["Non-Streaming", "Chunk 32", "Chunk 16", "Chunk 8", "Chunk 4"]
+rtfs   = [0.0088, 0.0090, 0.0079, 0.0081, 0.0080]
+colors_list = ["#1a76c4", "#2ecc71", "#e67e22", "#9b59b6", "#e74c3c"]
+
+fig, ax = plt.subplots(figsize=(9, 2.8))
 fig.patch.set_facecolor("white")
 ax.set_facecolor("#fafbfc")
 x = np.arange(len(chunks))
-bars = ax.bar(x, rtfs, 0.5, color=colors_rtf, alpha=0.85,
-              edgecolor="white", lw=1.2, zorder=3)
+bars = ax.bar(x, rtfs, 0.5, color=colors_list, alpha=0.85,
+              edgecolor="white", lw=1.0, zorder=3)
 ax.set_xticks(x)
-ax.set_xticklabels(["Non-Streaming", "Chunk 32", "Chunk 16", "Chunk 8", "Chunk 4"],
-                   fontsize=12, fontweight="bold")
-ax.set_ylabel("RTF", fontweight="bold")
-ax.set_title("Real-Time Factor per Chunk Size", fontweight="bold", pad=12)
-ax.grid(axis="y", alpha=0.3)
+ax.set_xticklabels(chunks, fontsize=10, fontweight="bold")
+ax.set_ylabel("RTF", fontweight="bold", fontsize=11)
+ax.set_title("Real-Time Factor per Chunk Size", fontweight="bold", pad=8, fontsize=13)
+ax.grid(axis="y", alpha=0.25)
 ax.grid(axis="x", alpha=0)
-ax.set_ylim(0, max(rtfs) * 1.4)
+ax.set_ylim(0, max(rtfs) * 1.35)
 for bar, rtf in zip(bars, rtfs):
-    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(rtfs)*0.02,
-            f"{rtf:.4f}", ha="center", va="bottom", fontsize=12,
+    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(rtfs)*0.025,
+            f"{rtf:.4f}", ha="center", va="bottom", fontsize=9,
             fontweight="bold", color="#2c3e50")
-ax.axhline(y=1.0, color="#e74c3c", linestyle="--", alpha=0.3, lw=1.5)
-ax.text(x[-1]+0.3, 1.02, "RTF=1.0", fontsize=9, color="#e74c3c", alpha=0.5, fontstyle="italic")
-save(fig, "rtf_comparison_new.png")
+ax.axhline(y=1.0, color="#e74c3c", linestyle="--", alpha=0.2, lw=1.0)
+ax.text(x[-1]+0.3, 1.01, "RTF=1.0", fontsize=7.5, color="#e74c3c",
+        alpha=0.4, fontstyle="italic")
+save(fig, "rtf_chart.png")
 
-# ═══════════════════════════════════════════
-#  Chart 2: CER Bar Chart (per chunk)
-# ═══════════════════════════════════════════
-fig, ax = plt.subplots(figsize=(10, 5.5))
-fig.patch.set_facecolor("white")
-ax.set_facecolor("#fafbfc")
-bars = ax.bar(x, cers, 0.5, color=colors_rtf, alpha=0.85,
-              edgecolor="white", lw=1.2, zorder=3)
-ax.set_xticks(x)
-ax.set_xticklabels(["Non-Streaming", "Chunk 32", "Chunk 16", "Chunk 8", "Chunk 4"],
-                   fontsize=12, fontweight="bold")
-ax.set_ylabel("CER (%)", fontweight="bold")
-ax.set_title("CER per Chunk Size (Non-Streaming baseline: 4.61%)", fontweight="bold", pad=12)
-ax.grid(axis="y", alpha=0.3)
-ax.grid(axis="x", alpha=0)
-ax.set_ylim(0, max(cers) * 1.3)
-for bar, cer in zip(bars, cers):
-    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(cers)*0.02,
-            f"{cer:.2f}%", ha="center", va="bottom", fontsize=12,
-            fontweight="bold", color="#2c3e50")
-save(fig, "cer_per_chunk.png")
-
-# ═══════════════════════════════════════════
-#  Chart 3: CER vs Latency dual-axis (clean standalone)
-# ═══════════════════════════════════════════
-latencies = [float("inf"), 1280, 640, 320, 160]
-fig, ax1 = plt.subplots(figsize=(10, 5.5))
-fig.patch.set_facecolor("white")
-ax1.set_facecolor("#fafbfc")
-x = np.arange(len(chunks))
-bars = ax1.bar(x, cers, 0.5, color="#1a76c4", alpha=0.8,
-               edgecolor="white", lw=1.2, zorder=3, label="CER (%)")
-ax1.set_xticks(x)
-ax1.set_xticklabels(["Non-Streaming", "Chunk 32", "Chunk 16", "Chunk 8", "Chunk 4"],
-                    fontsize=11, fontweight="bold")
-ax1.set_ylabel("CER (%)", fontweight="bold", color="#1a76c4")
-ax1.tick_params(axis="y", labelcolor="#1a76c4")
-ax1.set_ylim(0, max(cers) * 1.35)
-ax1.grid(axis="y", alpha=0.3)
-ax1.grid(axis="x", alpha=0)
-
-for bar, cer in zip(bars, cers):
-    ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(cers)*0.025,
-             f"{cer:.2f}%", ha="center", va="bottom", fontsize=10,
-             fontweight="bold", color="#1a76c4")
-
-ax2 = ax1.twinx()
-ax2.set_facecolor("#fafbfc")
-finite_lat = [l for l in latencies if l != float("inf")]
-finite_idx = [i for i, l in enumerate(latencies) if l != float("inf")]
-ax2.plot(finite_idx, finite_lat, "D-", color="#e74c3c", ms=8, lw=2.5,
-         zorder=5, label="Latency (ms)")
-ax2.set_ylabel("Latency (ms)", fontweight="bold", color="#e74c3c")
-ax2.tick_params(axis="y", labelcolor="#e74c3c")
-
-lines1, labs1 = ax1.get_legend_handles_labels()
-lines2, labs2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labs1 + labs2, loc="upper left",
-           framealpha=0.9, edgecolor="#d0d7de", fontsize=11)
-ax1.set_title("CER vs Latency per Chunk Size", fontweight="bold", pad=12)
-save(fig, "cer_vs_latency.png")
-
-print("Done — 3 charts generated.")
+print("Done — 6 images generated (5 cards + 1 combined bar chart).")

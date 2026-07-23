@@ -64,17 +64,17 @@
 
 ### ⚡ 流式解码性能概览
 
-**RTF 对比 (越低越好)**
-![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_chart.png)
-*所有配置 RTF ≪ 1.0，实时推理能力充足*
+**各配置指标卡片（每张卡片包含 CER / Latency / RTF）**
 
-**CER 对比 (越低越好)**
-![CER per Chunk](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_per_chunk.png)
-*chunk 越小延迟越低，CER 略升*
+![Non-Streaming](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_non_streaming.png)
+![Chunk 32](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_32.png)
+![Chunk 16](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_16.png)
+![Chunk 8](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_8.png)
+![Chunk 4](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_4.png)
 
-**CER vs Latency 双轴图**
-![CER vs Latency](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/cer_vs_latency.png)
-*chunk=16 在延迟 (640ms) 与精度 (CER 5.21%) 间取得最佳平衡，推荐用于实时场景。*
+**RTF 柱状图汇总**
+![RTF Chart](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_chart.png)
+*所有配置 RTF ≪ 1.0，实时推理能力充足。chunk=16 在延迟 (640ms) 与精度 (CER 5.21%) 间取得最佳平衡。*
 
 ---
 
