@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 
-def get_value(row, names):
+def get_value(row: dict, names: list[str]) -> str:
     for name in names:
         value = row.get(name)
         if value:

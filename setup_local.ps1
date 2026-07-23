@@ -3,7 +3,7 @@
 # Usage: powershell -ExecutionPolicy Bypass -File .\setup_local.ps1
 # ============================================================
 $ErrorActionPreference = "Stop"
-$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { "D:\wenet" }
+$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { $PSScriptRoot }
 Set-Location $ProjectRoot
 
 function Say-Step  { param($msg) Write-Host ("=== " + $msg + " ===") -ForegroundColor Cyan }
@@ -19,13 +19,21 @@ Write-Host "============================================" -ForegroundColor Cyan
 # ----------------------------------------------------------
 # 1. Check Git Bash
 # ----------------------------------------------------------
-$GitBash = "C:\Program Files\Git\bin\bash.exe"
-if (-not (Test-Path $GitBash)) {
-    Say-Err "Git Bash not found at: $GitBash"
+$GitBashCandidates = @(
+    "C:\Program Files\Git\bin\bash.exe",
+    "C:\Program Files\Git\usr\bin\bash.exe",
+    "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+)
+$GitBash = $null
+foreach ($candidate in $GitBashCandidates) {
+    if (Test-Path $candidate) { $GitBash = $candidate; break }
+}
+if (-not $GitBash) {
+    Say-Err "Git Bash not found. Tried: $($GitBashCandidates -join ', ')"
     Say-Err "Please install Git for Windows first."
     exit 1
 }
-Say-OK "Git Bash found"
+Say-OK "Git Bash found at: $GitBash"
 
 # 2. Check Python
 $pyCmd = (Get-Command python -ErrorAction SilentlyContinue)
@@ -44,7 +52,7 @@ print(f"CUDA: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"GPU: {torch.cuda.get_device_name(0)}")
 '@ | Set-Content -Path $torchCheckFile -Encoding UTF8
-$torchInfo = python $torchCheckFile 2>&1
+$torchInfo = python $torchCheckFile 2>&1 | Out-String
 Remove-Item $torchCheckFile -ErrorAction SilentlyContinue
 if ($LASTEXITCODE -ne 0) {
     Say-Err "PyTorch not installed. Please install: pip install torch torchaudio"

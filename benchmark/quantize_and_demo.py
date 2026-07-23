@@ -11,9 +11,10 @@ import os, sys
 import torchaudio.transforms as T
 from pathlib import Path
 
-WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
-S0_DIR = os.environ.get('WENET_S0_DIR', os.path.join(WENET_DIR, 'examples/aishell/s0'))
-CKPT_PATH = os.path.join(S0_DIR, 'exp/u2pp_conformer_course/epoch_4.pt')
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+WENET_DIR = os.environ.get('WENET_DIR', str(_PROJECT_ROOT / 'wenet'))
+S0_DIR = os.environ.get('WENET_S0_DIR', str(_PROJECT_ROOT / 'wenet' / 'examples' / 'aishell' / 's0'))
+CKPT_PATH = os.environ.get('CKPT_PATH', str(_PROJECT_ROOT / 'wenet' / 'examples' / 'aishell' / 's0' / 'exp' / 'u2pp_conformer_course' / 'epoch_4.pt'))
 
 OUT_DIR = Path('results')
 OUT_DIR.mkdir(exist_ok=True)
@@ -78,7 +79,7 @@ python benchmark/quantize_and_demo.py <path_to_wav>
 def run_with_model(wav_path=None):
     """Run quantization on actual trained model."""
     import torch, yaml, soundfile, time, json
-    sys.path.insert(0, os.environ.get('WENET_DIR', r'D:\wenet\wenet'))
+    sys.path.insert(0, WENET_DIR)
     os.chdir(S0_DIR)
 
     if not hasattr(torch.nn.Module, '__annotations__'):

@@ -8,12 +8,14 @@ Usage:
     python eval_cer.py --subset -1                # all test utts
 """
 import torch, yaml, json, os, sys, soundfile, argparse, editdistance
+from pathlib import Path
 
-WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
-S0_DIR = os.environ.get('WENET_S0_DIR', r'D:\wenet\wenet\examples\aishell\s0')
+_PROJECT_ROOT = Path(__file__).resolve().parent
+WENET_DIR = os.environ.get('WENET_DIR', str(_PROJECT_ROOT / 'wenet'))
+S0_DIR = os.environ.get('WENET_S0_DIR', str(_PROJECT_ROOT / 'wenet' / 'examples' / 'aishell' / 's0'))
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--subset', type=int, default=20, help='-1 for all')
     args = parser.parse_args()

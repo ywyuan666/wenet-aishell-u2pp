@@ -11,8 +11,17 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { "D:\wenet" }
-$GitBash = "C:\Program Files\Git\bin\bash.exe"
+$ProjectRoot = if ($env:WENET_ROOT) { $env:WENET_ROOT } else { $PSScriptRoot }
+
+$GitBashCandidates = @(
+    "C:\Program Files\Git\bin\bash.exe",
+    "C:\Program Files\Git\usr\bin\bash.exe",
+    "$env:LOCALAPPDATA\Programs\Git\bin\bash.exe"
+)
+$GitBash = $null
+foreach ($candidate in $GitBashCandidates) {
+    if (Test-Path $candidate) { $GitBash = $candidate; break }
+}
 
 # Colors
 function Say-Step  { Write-Host ("`n=== " + $args[0] + " ===") -ForegroundColor Cyan }
@@ -30,7 +39,9 @@ if (-not (Test-Path $GitBash)) {
 function Invoke-Bash {
     param([string]$ScriptPath, [string]$Description)
     Say-Step $Description
-    $bashScript = "cd /$($ProjectRoot.Replace(':','').Replace('\','/')); source ./env_autodl.sh; bash $ScriptPath"
+    $driveLetter = $ProjectRoot[0].ToString().ToLower()
+    $unixPath = "/$driveLetter$($ProjectRoot.Substring(2).Replace('\','/'))"
+    $bashScript = "cd $unixPath; bash $ScriptPath"
     & $GitBash -c $bashScript
     if ($LASTEXITCODE -ne 0) {
         Say-Err "Script failed: $ScriptPath"
