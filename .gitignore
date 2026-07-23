@@ -34,5 +34,19 @@ _run_all.sh
 
 # === 环境 ===
 venv/
+.venv/
 env/
 *.egg-info/
+
+# === 测试 & lint 缓存 ===
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# === 打包产物 ===
+dist/
+build/
+*.whl
+*.egg/

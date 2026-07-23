@@ -89,3 +89,59 @@ from wenet.utils.init_model import init_model
 print('init_model imported: OK')
 print('All core modules verified!')
 "
+
+  cross-platform:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install torch torchaudio soundfile PyYAML editdistance
+
+      - name: Python syntax check
+        shell: bash
+        run: |
+          python -c "
+import ast
+files = [
+    'tools/make_subset_data_list.py',
+    'tools/jsonl_to_wenet_data.py',
+    'tools/summarize_wenet_results.py',
+    'eval_cer.py',
+    'run_eval.py',
+]
+for f in files:
+    try:
+        with open(f, encoding='utf-8') as fh:
+            ast.parse(fh.read())
+        print(f'{f}: OK')
+    except SyntaxError as e:
+        print(f'{f}: FAIL - {e}')
+        raise
+print('All Python files syntax OK')
+"
+
+      - name: Check script files exist
+        shell: bash
+        run: |
+          echo "=== Scripts ===" && ls scripts/
+          echo "=== Tools ===" && ls tools/
+          echo "=== Benchmarks ===" && ls benchmark/
+
+      - name: Check .editorconfig, Makefile, pyproject.toml exist
+        shell: bash
+        run: |
+          for f in .editorconfig Makefile pyproject.toml .pre-commit-config.yaml .flake8; do
+            [ -f "$f" ] && echo "$f: OK" || echo "WARNING: $f missing"
+          done

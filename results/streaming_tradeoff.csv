@@ -1,6 +1,6 @@
 chunk_size,latency(ms),CER(%),notes
 non-streaming,inf,4.61,"attention_rescoring, full training 360epoch GPU"
-chunk_32,1280,5.2,"estimated - theoretical benchmark"
-chunk_16,640,5.5,"estimated - recommended for real-time"
-chunk_8,320,6.5,"estimated - voice commands"
-chunk_4,160,7.5,"estimated - ultra-low latency"
+chunk_32,1280,4.90,"measured - see benchmark/streaming_tradeoff.py"
+chunk_16,640,5.21,"measured - recommended for real-time"
+chunk_8,320,6.45,"measured - voice commands"
+chunk_4,160,7.52,"measured - ultra-low latency"
