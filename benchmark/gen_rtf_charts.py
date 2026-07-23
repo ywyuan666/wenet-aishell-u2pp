@@ -80,38 +80,4 @@ for name, lat, cer, rtf, color in configs:
     safe_name = name.lower().replace(" ", "_").replace("-", "_")
     save(fig, f"card_{safe_name}.png")
 
-# ── Also regenerate the combined small RTF bar chart (compact) ──
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.size": 12,
-    "axes.titlesize": 14,
-    "axes.labelsize": 12,
-})
-
-chunks = ["Non-Streaming", "Chunk 32", "Chunk 16", "Chunk 8", "Chunk 4"]
-rtfs   = [0.0088, 0.0090, 0.0079, 0.0081, 0.0080]
-colors_list = ["#1a76c4", "#2ecc71", "#e67e22", "#9b59b6", "#e74c3c"]
-
-fig, ax = plt.subplots(figsize=(9, 2.8))
-fig.patch.set_facecolor("white")
-ax.set_facecolor("#fafbfc")
-x = np.arange(len(chunks))
-bars = ax.bar(x, rtfs, 0.5, color=colors_list, alpha=0.85,
-              edgecolor="white", lw=1.0, zorder=3)
-ax.set_xticks(x)
-ax.set_xticklabels(chunks, fontsize=10, fontweight="bold")
-ax.set_ylabel("RTF", fontweight="bold", fontsize=11)
-ax.set_title("Real-Time Factor per Chunk Size", fontweight="bold", pad=8, fontsize=13)
-ax.grid(axis="y", alpha=0.25)
-ax.grid(axis="x", alpha=0)
-ax.set_ylim(0, max(rtfs) * 1.35)
-for bar, rtf in zip(bars, rtfs):
-    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(rtfs)*0.025,
-            f"{rtf:.4f}", ha="center", va="bottom", fontsize=9,
-            fontweight="bold", color="#2c3e50")
-ax.axhline(y=1.0, color="#e74c3c", linestyle="--", alpha=0.2, lw=1.0)
-ax.text(x[-1]+0.3, 1.01, "RTF=1.0", fontsize=7.5, color="#e74c3c",
-        alpha=0.4, fontstyle="italic")
-save(fig, "rtf_chart.png")
-
-print("Done — 6 images generated (5 cards + 1 combined bar chart).")
+print("Done — 5 metric cards generated.")

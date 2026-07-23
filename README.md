@@ -71,9 +71,6 @@
 ![Chunk 16](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_16.png)
 ![Chunk 8](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_8.png)
 ![Chunk 4](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/card_chunk_4.png)
-
-**RTF 柱状图汇总**
-![RTF Chart](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_chart.png)
 *所有配置 RTF ≪ 1.0，实时推理能力充足。chunk=16 在延迟 (640ms) 与精度 (CER 5.21%) 间取得最佳平衡。*
 
 ---
