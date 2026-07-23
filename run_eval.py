@@ -234,6 +234,10 @@ def main():
                         help="Use checkpoint instead of JIT model. Default: JIT first, fallback to checkpoint.")
     parser.add_argument("--chunk", type=int, default=None,
                         help="Override decoding_chunk_size for all configs. E.g. 16 for streaming.")
+    parser.add_argument("--wandb", action="store_true",
+                        help="Log results to Weights & Biases")
+    parser.add_argument("--mlflow", action="store_true",
+                        help="Log results to MLflow")
     args = parser.parse_args()
 
     # Load model
@@ -252,6 +256,41 @@ def main():
 
     # Pre-extract fbank features once (avoids 6× repeated WAV reading across configs)
     fb_cache = precompute_fbanks(items)
+
+    # ── Experiment tracking (W&B / MLflow) ──
+    tracker = None
+    if args.wandb:
+        try:
+            import wandb
+            wandb.init(
+                project="wenet-aishell-u2pp",
+                name=f"eval_{Path(args.checkpoint or CKPT_PATH).stem}",
+                config={
+                    "subset": args.subset,
+                    "model": args.checkpoint or CKPT_PATH,
+                    "chunk_override": args.chunk,
+                    "s0_dir": args.s0_dir,
+                },
+            )
+            tracker = ("wandb", wandb)
+            print("[Tracker] W&B initialized")
+        except ImportError:
+            print("[Tracker] W&B not installed, skip (pip install wandb)")
+
+    if args.mlflow:
+        try:
+            import mlflow
+            mlflow.set_experiment("wenet-aishell-u2pp")
+            mlflow.start_run(run_name=f"eval_{Path(args.checkpoint or CKPT_PATH).stem}")
+            mlflow.log_params({
+                "subset": args.subset,
+                "model": args.checkpoint or CKPT_PATH,
+                "chunk_override": args.chunk,
+            })
+            tracker = ("mlflow", mlflow)
+            print("[Tracker] MLflow initialized")
+        except ImportError:
+            print("[Tracker] MLflow not installed, skip (pip install mlflow)")
 
     # Evaluation configs
     eval_configs = [
@@ -299,6 +338,27 @@ def main():
         except Exception as e:
             print(f"FAILED: {e}")
             traceback.print_exc()
+
+    # ── Log to experiment tracker ──
+    if tracker:
+        tracker_name, tracker_mod = tracker
+        for r in results:
+            metrics = {
+                "cer": r["CER(%)"],
+                "rtf": r["RTF"],
+                "total_time_s": r["total_time(s)"],
+                "utterances": r["utterances"],
+                "total_chars": r["total_chars"],
+            }
+            if tracker_name == "wandb":
+                tracker_mod.log({f"{r['method']}/{k}": v for k, v in metrics.items()})
+            elif tracker_name == "mlflow":
+                for k, v in metrics.items():
+                    tracker_mod.log_metric(f"{r['method']}_{k}", v)
+
+        if tracker_name == "mlflow":
+            tracker_mod.end_run()
+        print(f"[Tracker] Results logged to {tracker_name}")
 
     # Print summary table
     print(f"\n{'=' * 70}")

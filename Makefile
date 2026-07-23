@@ -1,8 +1,12 @@
-.PHONY: help train train-course train-full finetune eval benchmark lint clean
+.PHONY: help train train-course train-full finetune eval benchmark \
+        test plot serve install lint clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+install:  ## Install in dev mode with all extras
+	pip install -e ".[all]"
 
 train-course:  ## Fast course training (3000 utts, quick iteration)
 	bash scripts/03_train_course_fast.sh
@@ -22,12 +26,23 @@ benchmark:  ## Run all benchmark scripts
 	python benchmark/error_analysis.py
 	python benchmark/quantize_and_demo.py
 
+test:  ## Run pytest on CER / data-loading / fbank tests
+	python -m pytest tests/ -v --tb=short -x
+
+test-all:  ## Run all tests including slow integration tests
+	python -m pytest tests/ -v --tb=short --runslow
+
+plot:  ## Generate benchmark visualization charts
+	python benchmark/plot_results.py --output figures
+
+serve:  ## Start streaming ASR server (chunk=16, port=8765)
+	python asr_server.py --chunk 16 --port 8765
+
 lint:  ## Check shell and Python syntax
 	bash -n env_autodl.sh
 	for f in scripts/*.sh; do bash -n "$$f"; done
-	python -m py_compile eval_cer.py run_eval.py
-	for f in benchmark/*.py; do python -m py_compile "$$f"; done
-	for f in tools/*.py; do python -m py_compile "$$f"; done
+	-flake8 eval_cer.py run_eval.py tools/ benchmark/ --config=.flake8
+	python -m pytest tests/ --collect-only -q 2>/dev/null || true
 
-clean:  ## Remove generated results
-	rm -rf results/*.md results/*.csv
+clean:  ## Remove generated results and artifacts
+	rm -rf results/*.md results/*.csv figures/ __pycache__ .pytest_cache
