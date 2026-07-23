@@ -3,7 +3,7 @@
 """
 Benchmark visualization script — Publication-quality plots.
 
-Produces three charts suitable for README and interview presentation:
+Produces three charts suitable for README and technical presentation:
   1. streaming_tradeoff.png     — CER vs Latency dual-axis chart
   2. architecture_comparison.png — Decoding mode comparison (two panels)
   3. rtf_comparison.png          — RTF per chunk-size
