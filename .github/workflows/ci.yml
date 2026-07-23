@@ -23,6 +23,11 @@ jobs:
           pip install --upgrade pip
           pip install torch torchaudio soundfile PyYAML
 
+      - name: Install test dependencies & run pytest
+        run: |
+          pip install pytest editdistance
+          python -m pytest tests/ -v --tb=short -x --ignore=tests/test_fbank.py
+
       - name: Verify project structure
         run: |
           echo "=== Scripts ===" && ls scripts/
@@ -108,6 +113,12 @@ print('All core modules verified!')
         run: |
           pip install --upgrade pip
           pip install torch torchaudio soundfile PyYAML editdistance
+
+      - name: Run pytest unit tests
+        shell: bash
+        run: |
+          pip install pytest
+          python -m pytest tests/test_cer.py tests/test_data_loading.py -v --tb=short -x
 
       - name: Python syntax check
         shell: bash

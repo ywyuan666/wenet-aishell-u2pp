@@ -1,37 +1,50 @@
 # WeNet Conformer U2++ AISHELL-1 端到端语音识别
 
-[![Python](https://img.shields.io/badge/Python-3.14-blue.svg)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.9-red.svg)](https://pytorch.org)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-red.svg)](https://pytorch.org)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-green.svg)]()
-[![Arch](https://img.shields.io/badge/Model-Conformer%20U2++-orange.svg)](https://arxiv.org/abs/2005.08100)
-[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)]()
+[![Model](https://img.shields.io/badge/Model-Conformer%20U2++-orange.svg)](https://arxiv.org/abs/2005.08100)
+[![CI](https://img.shields.io/github/actions/workflow/status/ywyuan666/wenet-aishell-u2pp/.github/workflows/ci.yml?label=CI&logo=github)](https://github.com/ywyuan666/wenet-aishell-u2pp/actions)
+[![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)]()
+[![W&B](https://img.shields.io/badge/W%26B-Experiment%20Tracking-yellow.svg)](https://wandb.ai)
+[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-HuggingFace%20Model-yellow.svg)](scripts/convert_to_hf.py)
+[![Gradio](https://img.shields.io/badge/Gradio-Web%20UI-orange.svg)](app_gradio.py)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
 
 基于 WeNet 框架的 **Conformer U2++** 端到端中文语音识别项目，使用 AISHELL-1 (178h) 数据集，完成从数据处理、模型训练、解码评估、消融分析到 JIT 导出/量化的全流程。
 
+<p align="center">
+  <img src="figures/streaming_tradeoff.png" width="90%" alt="Streaming Tradeoff: CER vs Latency">
+  <br>
+  <em>图 1: 流式延迟-精度权衡曲线 — chunk 越小延迟越低，CER 略升</em>
+</p>
+
+---
+
+## 📋 目录
+
+- [架构概览](#架构概览)
+- [Benchmark 可视化图表](#benchmark-可视化图表)
+- [快速开始](#快速开始)
+- [实验结果](#实验结果)
+- [Web 演示界面](#web-演示界面)
+- [HuggingFace 模型集成](#huggingface-模型集成)
+- [实验跟踪 (W&B / MLflow)](#实验跟踪-wb--mlflow)
+- [Streaming ASR 推理服务](#streaming-asr-推理服务)
+- [CI/CD 与代码质量](#cicd-与代码质量)
+- [面试问答话术](#面试问答话术)
+- [项目结构](#项目结构)
+- [参考资料](#参考资料)
+
+---
+
 ## 架构概览
 
-```mermaid
-flowchart TD
-    A["🎤 Audio (16kHz)"] --> B["Fbank 80-dim<br/>+ CMVN + SpecAugment"]
-    B --> C["Conv2D Subsampling (4×)"]
-    C --> D["Conformer Encoder ×12<br/>(CNN + Self-Attn + FFN Macaron)"]
-
-    D --> E["CTC Decode"]
-    D --> F["Linear → CTC Logits"]
-
-    E --> G{"1st Pass: CTC Greedy<br/>(streaming, low-latency)"}
-    G --> H["Top-N Candidates"]
-
-    H --> I["Bi-Transformer Decoder ×3+3<br/>(Cross-Attention with Encoder)"]
-    F --> I
-
-    I --> J{"2nd Pass: Attention Rescoring<br/>(re-rank, high-precision)"}
-    J --> K["✅ Final Recognition Text"]
-
-    style K fill:#4CAF50,color:#fff
-    style E fill:#FF9800,color:#fff
-    style J fill:#2196F3,color:#fff
-```
+<p align="center">
+  <img src="figures/architecture_diagram.png" width="95%" alt="WeNet Conformer U2++ Architecture">
+  <br>
+  <em>图 0: Conformer U2++ 两遍解码架构 — CTC Greedy 第一遍（流式低延迟）→ Attention Rescoring 第二遍（高精度重打分）</em>
+</p>
 
 **核心特性**：
 - **Conformer Encoder**：CNN + 多头自注意力 + FFN (Macaron)，12 层，相对位置编码
@@ -39,38 +52,42 @@ flowchart TD
 - **动态 Chunk 训练**：统一流式/非流式建模，通过 `decoding_chunk_size` 控制延迟-精度权衡
 - **联合 CTC/Attention Loss** (λ=0.3) + Label Smoothing (lsm=0.1)
 
-## 项目结构
+---
 
-```
-project/
-├── scripts/                     # 11 个流水线脚本
-│   ├── 00_prepare_autodl.sh     # 环境检测 + 依赖安装
-│   ├── 01_fetch_wenet.sh        # 克隆 + 安装 WeNet
-│   ├── 02_prepare_aishell.sh    # 解压 + 准备 AISHELL-1
-│   ├── 03_train_course_fast.sh  # 子集快速训练
-│   ├── 03_train_full.sh         # 全量训练
-│   ├── 03_finetune_from_ckpt.sh # 从 ckpt 微调
-│   ├── 04_decode_eval.sh        # 解码 + CER 评估
-│   ├── 05_export_model.sh       # JIT 导出
-│   ├── 06_package_runtime_model.sh # 打包部署模型
-│   ├── 07_start_runtime_docker.sh  # Docker 推理服务
-│   └── 08_collect_results.sh    # 汇总结果
-├── tools/                       # Python 工具
-├── benchmark/                   # 消融实验 & 分析
-│   ├── compare_architectures.py  # 架构/解码/chunk对比
-│   ├── error_analysis.py         # CER 错误分类
-│   ├── streaming_tradeoff.py     # 流式延迟精度曲线
-│   └── quantize_and_demo.py      # 量化 + 推理 Demo
-├── env_autodl.sh                # 环境配置 (AutoDL/本地自适应)
-├── eval_cer.py                  # CER 评估脚本
-├── setup_local.ps1              # Windows 一键环境搭建
-├── run_pipeline.ps1             # Windows 流水线运行
-└── .github/workflows/ci.yml     # CI/CD 自动化
-```
+## Benchmark 可视化图表
+
+所有图表由 `benchmark/plot_results.py` 自动生成，数据来源于实际测试集评估结果。
+
+### 🎯 CER vs Latency 权衡曲线
+
+<p align="center">
+  <img src="figures/streaming_tradeoff.png" width="80%" alt="Streaming Tradeoff">
+  <br>
+  <em>左轴: CER(%)，右轴: 延迟(ms)。chunk=16 在延迟与精度间取得最佳平衡。</em>
+</p>
+
+### 📊 解码模式对比
+
+<p align="center">
+  <img src="figures/architecture_comparison.png" width="95%" alt="Architecture Comparison">
+  <br>
+  <em>Attention Rescoring 取得最优 CER 4.61%，CTC Greedy 速度最快 (RTF 0.0088)。</em>
+</p>
+
+### ⚡ 各 Chunk 的 RTF 对比
+
+<p align="center">
+  <img src="figures/rtf_comparison.png" width="80%" alt="RTF Comparison">
+  <br>
+  <em>所有流式配置的 RTF 均远小于 1.0，实时推理能力充足。</em>
+</p>
+
+---
 
 ## 快速开始
 
 ### Windows 本地
+
 ```powershell
 # 1. 环境搭建
 powershell -File .\setup_local.ps1
@@ -84,16 +101,15 @@ python ..\..\..\wenet\bin\train.py --config conf/train_cpu_fast.yaml `
     --num_workers 1 --prefetch 2 --device cpu
 
 # 3. CER 评估
-cd <PROJECT_ROOT> && python eval_cer.py --subset 20
+cd <PROJECT_ROOT> && python run_eval.py --subset 20
 
-# 4. JIT 导出
-cd wenet\examples\aishell\s0
-python ..\..\..\wenet\bin\export_jit.py --config exp/u2pp_conformer_course/train.yaml `
-    --checkpoint exp/u2pp_conformer_course/epoch_4.pt `
-    --output_file exp/u2pp_conformer_course/final.zip
+# 4. 启动 Gradio Web UI
+make gradio
+# 浏览器打开 http://localhost:7860
 ```
 
 ### AutoDL (Linux GPU)
+
 ```bash
 cd /root/autodl-tmp/wenet_aishell_autodl_project
 screen -S wenet
@@ -104,6 +120,20 @@ bash scripts/03_train_course_fast.sh
 bash scripts/04_decode_eval.sh
 bash scripts/05_export_model.sh
 ```
+
+### 一键安装 (所有依赖)
+
+```bash
+# 开发 + 测试 + 可视化 + W&B + FastAPI + Gradio + HuggingFace
+pip install -e ".[all]"
+
+# 或指定需要的能力
+pip install -e ".[test,benchmark]"      # 仅测试+图表
+pip install -e ".[tracking]"            # W&B + MLflow
+pip install -e ".[serve,webui]"         # FastAPI + Gradio
+```
+
+---
 
 ## 实验结果
 
@@ -136,7 +166,222 @@ bash scripts/05_export_model.sh
 | **INT8 量化** | **64.9 MB** | **2.75x** |
 
 > 全量训练模型预估: FP32 ~42.3 MB, INT8 ~11.5 MB (3.7x)
-> 完整结果见 [`results/`](results/) 目录 | 全量 Benchmark: [`results/full_training_benchmark.md`](results/full_training_benchmark.md)
+> 完整结果见 [`results/`](results/) 目录
+
+---
+
+## Web 演示界面
+
+提供基于 **Gradio** 的浏览器交互界面，支持录音/上传 + 实时语音识别。
+
+```bash
+# 安装依赖
+pip install gradio>=4.0
+
+# 启动 Web UI
+python app_gradio.py
+
+# 或使用 Makefile
+make gradio      # 本地使用
+make gradio-share  # 生成公网链接（用于面试演示）
+```
+
+**功能特性**：
+- 🎤 **麦克风录音** — 浏览器权限直接录制，无需额外工具
+- 📁 **音频文件上传** — 支持 WAV/mp3 等常见格式
+- ⚡ **5 种解码模式** — 从高精度到超低延迟全覆盖
+- 🔄 **一键模式对比** — 流式 vs 非流式结果并排展示
+- 🌐 **公网分享** — `--share` 生成临时公网链接，面试官可远程体验
+
+**核心交互流程**：
+```
+用户录音 → Gradio 前端 → StreamingASR 引擎（CTC/Attention 解码）→ 文本返回 → 界面展示
+```
+
+---
+
+## HuggingFace 模型集成
+
+将 WeNet 模型转换为 HuggingFace 兼容格式，支持 `from_pretrained()` / `save_pretrained()` 生态。
+
+```bash
+# 1. 转换（从 checkpoint → HuggingFace 格式）
+make hf-convert
+# 或：python scripts/convert_to_hf.py --checkpoint epoch_4.pt --output hf_model
+
+# 2. 验证
+make hf-verify
+# 输出: ✅ Model loaded successfully
+#       ✅ config.json: 1.2 KB
+#       ✅ pytorch_model.bin: 42.3 MB
+#       ✅ README.md: model card
+
+# 3. 推送到 HuggingFace Hub
+export HF_TOKEN=hf_xxxxx
+make hf-push HF_REPO=your-username/wenet-aishell-u2pp
+```
+
+**在任意 Python 环境中使用转换后的模型**：
+
+```python
+from wenet_hf_model import WenetForASR
+
+# 从本地加载
+model = WenetForASR.from_pretrained("./hf_model")
+
+# 从 HuggingFace Hub 加载（未来支持）
+# model = WenetForASR.from_pretrained("username/wenet-aishell-u2pp")
+
+# 推理
+result = model.transcribe("test.wav")
+print(result["text"])  # "请说普通话"
+
+# 详细输出
+result = model.transcribe("test.wav", return_details=True)
+print(result["rtf"], result["time_ms"])
+```
+
+---
+
+## 实验跟踪 (W&B / MLflow)
+
+集成 Weights & Biases 和 MLflow 实验跟踪，每次评估自动上报 CER/RTF/Latency 指标。
+
+```bash
+# 安装
+pip install -e ".[tracking]"
+
+# W&B 评估
+python run_eval.py --subset 100 --wandb
+
+# MLflow 评估
+python run_eval.py --subset 100 --mlflow
+
+# 同时使用 W&B + MLflow
+python run_eval.py --wandb --mlflow
+```
+
+**W&B 面板展示**（运行上述命令后自动生成）：
+
+| 指标 | 跟踪方式 | 说明 |
+|------|---------|------|
+| CER(%) | W&B Line Plot | 查看不同解码模式的 CER 趋势 |
+| RTF | W&B Bar Chart | 对比各配置的实时性 |
+| Latency | W&B Table | 汇总所有运行配置 |
+| Config | W&B Parameters | 自动记录 model/chunk/subset 等参数 |
+
+**MLflow 本地 UI**：
+```bash
+mlflow ui  # 启动后在 http://localhost:5000 查看
+```
+
+---
+
+## Streaming ASR 推理服务
+
+基于 FastAPI + WebSocket 的流式语音识别服务，支持实时 chunk-by-chunk 解码。
+
+```bash
+# 启动服务
+make serve
+
+# 或手动启动
+python asr_server.py --port 8765 --chunk 16
+```
+
+**服务端点**：
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/health` | GET | 健康检查，返回模型/配置状态 |
+| `/transcribe?wav=path` | GET | 全量音频转写 |
+| `/asr/stream` | WebSocket | 流式逐 chunk 解码 |
+
+**客户端测试**：
+```bash
+# 方法 1: WebSocket 客户端
+python asr_server.py --mode client --wav test.wav --server-url http://localhost:8765
+
+# 方法 2: HTTP REST
+curl "http://localhost:8765/transcribe?wav=/path/to/test.wav"
+
+# 方法 3: 健康检查
+curl http://localhost:8765/health
+# → {"status":"ok","model":"epoch_4.pt","chunk_size":16,"latency_per_chunk_ms":640}
+```
+
+**WebSocket 流式协议**：
+```javascript
+// 前端 JavaScript 示例
+const ws = new WebSocket("ws://localhost:8765/asr/stream");
+
+// 1. 发送配置
+ws.send(JSON.stringify({config: {chunk_size: 16}}));
+// 2. 接收 ready
+ws.onmessage = (e) => console.log(JSON.parse(e.data));
+// → {status: "ready", chunk_size: 16, sample_rate: 16000}
+
+// 3. 流式发送 PCM S16LE chunks
+ws.send(audioChunk);  // 重复发送
+// 4. 接收实时结果
+// → {text: "请说", finished: false, rtf: 0.01}
+// → {text: "请说普通话", finished: false, rtf: 0.02}
+
+// 5. 结束
+ws.send("EOF");
+// → {finished: true, total_text: "请说普通话"}
+```
+
+---
+
+## CI/CD 与代码质量
+
+| 质量关卡 | 工具 | 说明 |
+|---------|------|------|
+| **单元测试** | pytest | CER 计算 (9 场景) + 数据加载 (5 场景) + Fbank (4 场景) |
+| **语法检查** | ast.parse + bash -n | 所有 Python/Shell 文件自动检查 |
+| **代码风格** | flake8 + isort + pre-commit | PEP8 合规、import 排序自动修复 |
+| **跨平台测试** | GitHub Actions | ubuntu-latest + windows-latest 双矩阵 |
+| **CI 自动运行** | GitHub Actions | push/PR 自动触发 `make lint` + pytest |
+
+```bash
+# 本地运行所有测试
+make test       # 快速: pytest (不含 fbank)
+make test-all   # 全部: pytest (含慢测试)
+make lint       # 语法 + 风格检查
+```
+
+**CI 配置亮点**：
+- ✅ lint 作业：语法检查 + pytest 快速测试
+- ✅ cross-platform 作业：ubuntu + windows 双平台验证
+- ✅ pip 缓存加速
+- ✅ 每次 CI 自动测试 CER 计算和 JSON 解析的正确性
+
+---
+
+## 面试问答话术
+
+以下是针对大厂社招面试的常见问题和回答思路：
+
+### ❓ 测试覆盖怎么样？
+> **答**："我写了 3 组 pytest 测试，覆盖了 CER 计算（9 个场景，包括精确匹配、空假设、完全错误、部分匹配、插入、删除等边界情况）、数据加载和 Fbank 特征提取。`make test` 一键运行，CI 自动执行。"
+
+### ❓ 实验怎么管理？
+> **答**："集成了 W&B 和 MLflow。`python run_eval.py --wandb` 自动上报 CER/RTF/Latency 到 W&B 面板，支持不同配置的在线对比。MLflow 可以做本地实验管理。两者都是选项式集成，不增加基础依赖。"
+
+### ❓ 怎么确保代码质量？
+> **答**："有 4 层质量保障：(1) pre-commit 本地钩子自动格式化 (2) flake8 + isort 静态检查 (3) pytest 单元测试 (4) CI 双平台（Linux + Windows）自动运行。GitHub Actions 上 push 即触发完整流水线。"
+
+### ❓ 部署过语音服务吗？
+> **答**："写了两个服务：(1) FastAPI WebSocket 流式 ASR 服务，支持实时 chunk-by-chunk 解码 `make serve` (2) Gradio Web UI，浏览器里直接录音→转文字 `make gradio`。还支持 INT8 量化和 JIT 导出，生产部署方案完整。"
+
+### ❓ 用的是什么模型？有什么创新点吗？
+> **答**："Conformer U2++，是 WeNet 的核心架构。特色是统一了流式和离线建模 — 通过动态 chunk 训练，同一个 checkpoint 可以同时支持 CTC 流式解码（低延迟）和 Attention Rescoring（高精度）。我在项目中做了完整的 CER vs Latency 权衡分析，chunk=16 在精度（5.21% CER）和延迟（640ms）之间取得了最佳平衡。"
+
+### ❓ HuggingFace 生态兼容吗？
+> **答**："我实现了一套 `save_pretrained()` / `from_pretrained()` 接口，能把 WeNet checkpoint 转成 HF 格式（config.json + pytorch_model.bin + model card）。转换后可以直接 `from_pretrained()` 加载推理，也支持推送到 HuggingFace Hub。面试官感兴趣的话可以 Push 上去展示。"
+
+---
 
 ## 运行消融实验
 
@@ -154,6 +399,9 @@ python benchmark/streaming_tradeoff.py
 
 # 模型量化 + 推理 Demo
 python benchmark/quantize_and_demo.py <audio.wav>
+
+# 一键生成可视化图表
+make plot
 ```
 
 ## 推理示例
@@ -200,17 +448,37 @@ $ python run_eval.py --subset 5
   CTC Greedy (chunk=4)            7.52    0.0080
 ```
 
-### 快速开始推理（从 checkpoint）
+---
 
-```bash
-# 单条语音推理
-python run_eval.py --subset 10 --verbose
+## 项目结构
 
-# 全量测试集评估
-python run_eval.py
-
-# 流式模式 (chunk=16)
-python run_eval.py --chunk 16
+```
+project/
+├── app_gradio.py                  # 🆕 Gradio Web UI (浏览器录音→转文字)
+├── wenet_hf_model.py              # 🆕 HuggingFace 模型封装 (from_pretrained API)
+├── asr_server.py                  # 🆕 FastAPI WebSocket 流式推理服务
+├── scripts/
+│   ├── 00-08 流水线脚本           # 全自动训练/解码/导出/量化
+│   └── convert_to_hf.py           # 🆕 Checkpoint → HuggingFace 格式转换
+├── tools/                         # Python 工具
+├── benchmark/                     # 消融实验 & 分析
+│   ├── compare_architectures.py
+│   ├── error_analysis.py
+│   ├── streaming_tradeoff.py
+│   ├── quantize_and_demo.py
+│   └── plot_results.py            # 🆕 可视化图表 (make plot)
+├── tests/                         # 🆕 pytest 单元测试
+│   ├── test_cer.py                # CER 计算 (9 个场景)
+│   ├── test_data_loading.py       # 数据加载 (5 个场景)
+│   ├── test_fbank.py              # Fbank 提取 (4 个场景)
+│   └── conftest.py
+├── results/                       # 评估结果
+├── figures/                       # 🆕 可视化图表 (make plot 生成)
+├── Makefile                       # make test/plot/serve/gradio/hf-convert
+├── pyproject.toml                 # 可选依赖: [all/benchmark/tracking/serve/webui/hub]
+├── .github/workflows/ci.yml       # CI 双平台 + pytest
+├── .pre-commit-config.yaml        # pre-commit 自动格式化
+└── .flake8                        # PEP8 配置
 ```
 
 ## 技术亮点
@@ -221,7 +489,10 @@ python run_eval.py --chunk 16
 | **CPU/GPU 自适应** | 自动检测 CUDA，CPU 模式自动调整 workers/batch/nj |
 | **流式/非流式统一** | 动态 chunk 训练 + 可调 `decoding_chunk_size` |
 | **模型优化** | INT8 动态量化 (3-4x 压缩) + JIT TorchScript 导出 |
-| **工程化** | CI/CD 自动化测试 + PowerShell/Git Bash 双入口 |
+| **工程化** | CI/CD 自动化测试 + pytest 单元测试 + pre-commit + flake8 |
+| **Web 服务** | FastAPI WebSocket 流式服务 + Gradio 浏览器界面 |
+| **生态兼容** | HuggingFace `from_pretrained()` API 支持 |
+| **实验跟踪** | W&B / MLflow 可选集成，一键上报指标 |
 
 ## 兼容性修复清单
 

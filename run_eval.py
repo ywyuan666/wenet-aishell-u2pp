@@ -25,10 +25,13 @@ import csv
 import traceback
 from pathlib import Path
 
-# Paths - auto-detect or env var override
-WENET_DIR = os.environ.get("WENET_DIR", r"D:/wenet/wenet")
-S0_DIR = os.environ.get("WENET_S0_DIR", os.path.join(WENET_DIR, "examples/aishell/s0"))
-CKPT_PATH = os.path.join(S0_DIR, "exp/u2pp_conformer_course/epoch_4.pt")
+# Paths - auto-detect from project root or env var override
+_PROJECT_ROOT = Path(__file__).resolve().parent
+WENET_DIR = os.environ.get("WENET_DIR", str(_PROJECT_ROOT / "wenet"))
+S0_DIR = os.environ.get("WENET_S0_DIR", str(_PROJECT_ROOT / "wenet" / "examples" / "aishell" / "s0"))
+CKPT_PATH = os.environ.get("CKPT_PATH", str(
+    _PROJECT_ROOT / "wenet" / "examples" / "aishell" / "s0" / "exp" / "u2pp_conformer_course" / "epoch_4.pt"
+))
 
 # ── Compatibility patches for WeNet on Python 3.14 / torch 2.9 ──
 # Must be done before any WeNet import

@@ -38,6 +38,21 @@ plot:  ## Generate benchmark visualization charts
 serve:  ## Start streaming ASR server (chunk=16, port=8765)
 	python asr_server.py --chunk 16 --port 8765
 
+gradio:  ## Start Gradio Web UI (browser-based ASR demo)
+	python app_gradio.py --port 7860
+
+gradio-share:  ## Start Gradio with public share link
+	python app_gradio.py --port 7860 --share
+
+hf-convert:  ## Convert checkpoint to HuggingFace format
+	python scripts/convert_to_hf.py --output hf_model
+
+hf-verify:  ## Verify HuggingFace model
+	python scripts/convert_to_hf.py --verify hf_model
+
+hf-push:  ## Push HuggingFace model to Hub (set HF_TOKEN)
+	python scripts/convert_to_hf.py --output hf_model --push-to-hub $(HF_REPO)
+
 lint:  ## Check shell and Python syntax
 	bash -n env_autodl.sh
 	for f in scripts/*.sh; do bash -n "$$f"; done
