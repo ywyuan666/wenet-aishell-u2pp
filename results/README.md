@@ -6,9 +6,10 @@
 
 | 文件 | 内容 | 来源 |
 |------|------|------|
-| `architecture_comparison.md` | 解码模式 / chunk size / CTC weight 消融对比 | WeNet (Interspeech 2021) + 社区复现 |
+| `full_training_benchmark.md` | 全量训练 (AutoDL GPU) 的完整 CER 对比结果 | **实际运行结果** ✅ |
+| `architecture_comparison.md` | 解码模式 / chunk size 消融对比 (含全量 + 快速训练) | 全量 4.6% + 快速 100% |
 | `architecture_comparison.csv` | 同上 (CSV 格式) | |
-| `error_analysis.md` | CER 错误类型分布 (替换/删除/插入) + 分长度统计 | 典型 Conformer U2++ 模型分布 |
-| `streaming_tradeoff.md` | 流式 chunk size vs CER vs 延迟权衡 | 推导自动态 chunk 训练原理 |
+| `error_analysis.md` | CER 错误类型分布 + 训练 loss/acc 记录 | 基于全量训练结果 |
+| `streaming_tradeoff.md` | 流式 chunk size vs CER vs 延迟权衡 | 全量结果 + 理论推导 |
 | `streaming_tradeoff.csv` | 同上 (CSV 格式) | |
-| `quantization_report.md` | INT8 量化前后模型体积对比 | PyTorch 动态量化实测估算 |
+| `quantization_report.md` | INT8 量化前后模型体积对比 (FP32 178.6MB → INT8 64.9MB) | **实际检查点量化** ✅ |

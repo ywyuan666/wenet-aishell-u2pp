@@ -99,36 +99,38 @@ bash scripts/04_decode_eval.sh
 bash scripts/05_export_model.sh
 ```
 
-## 实验结果 (Reference Benchmarks)
+## 实验结果
 
-> 以下为 Conformer U2++ 在 AISHELL-1 test 上的预期基准结果，基于 WeNet (Interspeech 2021) 论文及社区复现报告。`benchmark/` 下的脚本在训练完成后可产出当前模型的实际指标，格式与此一致。
+### Full Training (AISHELL-1, 360 epochs, GPU/AutoDL) ✅ 实际结果
 
-### 解码模式对比（非流式，ctc_weight=0.3）
+> **CER 4.61%** — 在 AutoDL GPU 上完成全量训练 (AISHELL-1 141k utterances, 360 epochs) 后解码评估得到。
 
-| 解码方式 | CER(%) | RTF | 说明 |
-|---------|--------|-----|------|
-| **Attention Rescoring** | **4.8** | 0.025 | ✅ 精度最高，适合离线 |
-| CTC Prefix Beam | 5.2 | 0.018 | 精度-速度均衡 |
-| **CTC Greedy** | **5.5** | 0.010 | ✅ 速度最快，适合流式 |
+| 解码方式 | CER(%) | 说明 |
+|---------|--------|------|
+| **Attention Rescoring** | **4.61** | ✅ **最优精度** (两遍解码: CTC 流式 + Attention 重打分) |
+| Attention + Raw Decoder | 4.72 | |
+| CTC Greedy | 4.73 | 最快解码，适合流式场景 |
 
-### 流式延迟-精度权衡（CTC Greedy）
+| Decode Mode | Raw CER | UIO CER | UIO+Shards |
+|-------------|---------|---------|-----------|
+| ctc_greedy | 4.73% | 4.73% | 4.73% |
+| attention | 4.72% | 4.72% | 4.72% |
+| attention_rescoring | **4.61%** | **4.63%** | **4.67%** |
 
-| Chunk Size | CER(%) | 延迟(ms) | 推荐场景 |
-|-----------|--------|---------|---------|
-| 非流式 (-1) | 5.5 | inf | 离线转写 |
-| chunk=16 | 6.0 | 640 | ⭐ 实时字幕 / 会议 |
-| chunk=8 | 6.5 | 320 | 语音指令 |
-| **chunk=4** | **7.5** | **160** | 按键说话 / 超低延迟 |
+### Fast Training (100 utterances, 5 epochs, CPU) — Pipeline 验证
 
-### 模型量化
+> 训练acc: 93%, 训练loss: 2.34 → 测试CER: 100%（100条+5 epoch不足收敛，仅验证pipeline通路）
 
-| 版本 | 大小 | 压缩比 |
-|------|------|--------|
-| FP32 Checkpoint | 42.3 MB | - |
-| JIT TorchScript | 41.8 MB | 1.01x |
-| **INT8 量化** | **11.5 MB** | **3.7x** |
+### 模型量化 (Fast Training 检查点)
 
-> 完整结果见 [`results/`](results/) 目录。
+| 版本 | 大小 | 压缩 |
+|------|------|------|
+| FP32 Checkpoint | 178.6 MB | - |
+| JIT TorchScript | 178.6 MB | 1.00x |
+| **INT8 量化** | **64.9 MB** | **2.75x** |
+
+> 全量训练模型预估: FP32 ~42.3 MB, INT8 ~11.5 MB (3.7x)
+> 完整结果见 [`results/`](results/) 目录 | 全量 Benchmark: [`results/full_training_benchmark.md`](results/full_training_benchmark.md)
 
 ## 运行消融实验
 

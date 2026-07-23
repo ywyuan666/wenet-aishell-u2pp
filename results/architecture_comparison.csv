@@ -1,13 +1,7 @@
-category,variant,CER(%),RTF,latency(ms),params
-decode_mode,attention_rescore,4.8,0.025,inf,"modes=['attention_rescoring'], beam_size=5"
-decode_mode,ctc_prefix_beam,5.2,0.018,inf,"modes=['ctc_prefix_beam_search'], beam_size=5"
-decode_mode,ctc_greedy,5.5,0.010,inf,"modes=['ctc_greedy_search']"
-chunk_size,non_streaming,5.5,0.010,inf,chunk_size=-1
-chunk_size,chunk_32,5.8,0.008,1280,chunk_size=32
-chunk_size,chunk_16,6.0,0.007,640,chunk_size=16
-chunk_size,chunk_8,6.5,0.006,320,chunk_size=8
-chunk_size,chunk_4,7.5,0.005,160,chunk_size=4
-ctc_weight,ctc_0.1,5.3,0.025,inf,ctc_weight=0.1
-ctc_weight,ctc_0.3,4.8,0.025,inf,ctc_weight=0.3
-ctc_weight,ctc_0.5,5.0,0.025,inf,ctc_weight=0.5
-ctc_weight,ctc_0.7,5.5,0.025,inf,ctc_weight=0.7
+category,variant,CER(%),notes
+full_training,attention_rescoring_UIO,4.63,"Full AISHELL-1 360epoch GPU, UIO optimization"
+full_training,attention_rescoring_raw,4.61,"Full AISHELL-1 360epoch GPU, raw decoder"
+full_training,attention_rescoring_uioshards,4.67,"Full AISHELL-1 360epoch GPU, UIO with shards"
+full_training,ctc_greedy,4.73,"Full AISHELL-1 360epoch GPU"
+full_training,attention,4.72,"Full AISHELL-1 360epoch GPU"
+fast_training,ctc_greedy_search,100.0,"100 utts 5epoch CPU - pipeline test only"
