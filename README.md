@@ -357,31 +357,6 @@ make lint       # 语法 + 风格检查
 - ✅ pip 缓存加速
 - ✅ 每次 CI 自动测试 CER 计算和 JSON 解析的正确性
 
----
-
-## 面试问答话术
-
-以下是针对大厂社招面试的常见问题和回答思路：
-
-### ❓ 测试覆盖怎么样？
-> **答**："我写了 3 组 pytest 测试，覆盖了 CER 计算（9 个场景，包括精确匹配、空假设、完全错误、部分匹配、插入、删除等边界情况）、数据加载和 Fbank 特征提取。`make test` 一键运行，CI 自动执行。"
-
-### ❓ 实验怎么管理？
-> **答**："集成了 W&B 和 MLflow。`python run_eval.py --wandb` 自动上报 CER/RTF/Latency 到 W&B 面板，支持不同配置的在线对比。MLflow 可以做本地实验管理。两者都是选项式集成，不增加基础依赖。"
-
-### ❓ 怎么确保代码质量？
-> **答**："有 4 层质量保障：(1) pre-commit 本地钩子自动格式化 (2) flake8 + isort 静态检查 (3) pytest 单元测试 (4) CI 双平台（Linux + Windows）自动运行。GitHub Actions 上 push 即触发完整流水线。"
-
-### ❓ 部署过语音服务吗？
-> **答**："写了两个服务：(1) FastAPI WebSocket 流式 ASR 服务，支持实时 chunk-by-chunk 解码 `make serve` (2) Gradio Web UI，浏览器里直接录音→转文字 `make gradio`。还支持 INT8 量化和 JIT 导出，生产部署方案完整。"
-
-### ❓ 用的是什么模型？有什么创新点吗？
-> **答**："Conformer U2++，是 WeNet 的核心架构。特色是统一了流式和离线建模 — 通过动态 chunk 训练，同一个 checkpoint 可以同时支持 CTC 流式解码（低延迟）和 Attention Rescoring（高精度）。我在项目中做了完整的 CER vs Latency 权衡分析，chunk=16 在精度（5.21% CER）和延迟（640ms）之间取得了最佳平衡。"
-
-### ❓ HuggingFace 生态兼容吗？
-> **答**："我实现了一套 `save_pretrained()` / `from_pretrained()` 接口，能把 WeNet checkpoint 转成 HF 格式（config.json + pytorch_model.bin + model card）。转换后可以直接 `from_pretrained()` 加载推理，也支持推送到 HuggingFace Hub。面试官感兴趣的话可以 Push 上去展示。"
-
----
 
 ## 运行消融实验
 
