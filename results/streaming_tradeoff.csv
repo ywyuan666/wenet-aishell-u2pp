@@ -1,0 +1,7 @@
+chunk_size,CER(%),RTF,latency(ms)
+non-streaming,5.5,0.010,inf
+chunk_32,5.8,0.008,1280
+chunk_16,6.0,0.007,640
+chunk_8,6.5,0.006,320
+chunk_4,7.5,0.005,160
+chunk_2,9.8,0.004,80
