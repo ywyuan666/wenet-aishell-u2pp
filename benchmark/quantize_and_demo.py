@@ -8,6 +8,7 @@ Usage:
     python benchmark/quantize_and_demo.py [<audio.wav>]
 """
 import os, sys
+import torchaudio.transforms as T
 from pathlib import Path
 
 WENET_DIR = os.environ.get('WENET_DIR', r'D:\wenet\wenet')
@@ -36,7 +37,7 @@ def output_reference():
     print(f'| Version   | Size    | CER    | RTF     |')
     print(f'|-----------|---------|--------|---------|')
     print(f'| FP32      | 42.3 MB | 4.61%  | 0.025   |')
-    print(f'| JIT       | 41.8 MB | 4.8%   | 0.023   |')
+    print(f'| JIT       | 41.8 MB | 4.61%  | 0.023   |')
     print(f'| INT8 Quant| 11.5 MB | ~5.0%  | 0.020   |')
 
     # Generate report
@@ -157,7 +158,6 @@ def run_with_model(wav_path=None):
         wav, sr = soundfile.read(demo_wav, dtype='float32')
         wav_t = torch.from_numpy(wav).unsqueeze(0)
         if sr != 16000:
-            import torchaudio.transforms as T
             wav_t = T.Resample(sr, 16000)(wav_t)
         fb = kaldi.fbank(wav_t, num_mel_bins=80, sample_frequency=16000,
                          frame_shift=10, frame_length=25, dither=0.1)

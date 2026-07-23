@@ -85,13 +85,12 @@ ensure_gpu_env() {
     fi
 }
 
-echo "=== Environment Loaded ==="
-echo "PROJECT_ROOT     = $PROJECT_ROOT"
-echo "AUTODL_DATA_ROOT = $AUTODL_DATA_ROOT"
-echo "WENET_ROOT       = $WENET_ROOT"
-echo "AISHELL_ROOT     = $AISHELL_ROOT"
-echo "CUDA_AVAILABLE   = $CUDA_AVAILABLE"
-echo "IS_WINDOWS       = $IS_WINDOWS"
-echo "IS_AUTODL        = $IS_AUTODL"
-echo "SUBSET_UTTS      = $SUBSET_UTTS"
-echo "========================="
+if [ "${VERBOSE_ENV:-1}" = "1" ]; then
+  echo "=== Environment Loaded ==="
+  echo "PROJECT_ROOT     = $PROJECT_ROOT"
+  echo "WENET_ROOT       = $WENET_ROOT"
+  echo "AISHELL_ROOT     = $AISHELL_ROOT"
+  echo "CUDA_AVAILABLE   = $CUDA_AVAILABLE"
+  echo "SUBSET_UTTS      = $SUBSET_UTTS"
+  echo "========================="
+fi

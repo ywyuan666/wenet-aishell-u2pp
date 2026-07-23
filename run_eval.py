@@ -123,6 +123,19 @@ def sum_compute_chars(items):
     return sum(len(item.get("txt", "")) for item in items)
 
 
+def precompute_fbanks(items: list) -> list:
+    """Pre-extract fbank features for all test items to avoid repeated WAV reading."""
+    print(f"Pre-extracting fbank features for {len(items)} utterances...", end=" ", flush=True)
+    fb_cache = []
+    for i, item in enumerate(items):
+        fb, fb_len = extract_fbank(item["wav"])
+        fb_cache.append((fb, fb_len, item["txt"]))
+        if (i + 1) % 50 == 0:
+            print(f"{i + 1}...", end="", flush=True)
+    print(" done")
+    return fb_cache
+
+
 def compute_cer(hyp_tokens: list[str], ref_text: str) -> tuple[int, int]:
     """Compute character error rate between hypothesis and reference."""
     # Token-level comparison using edit distance
@@ -140,10 +153,14 @@ def compute_cer(hyp_tokens: list[str], ref_text: str) -> tuple[int, int]:
 
 
 def eval_model(items: list, model, method: str, beam_size: int = 1, chunk_size: int = -1,
-               ctc_weight: float = 0.3, reverse_weight: float = 0.3, verbose: bool = False):
+               ctc_weight: float = 0.3, reverse_weight: float = 0.3, verbose: bool = False,
+               fb_cache: list | None = None):
     """
     Run evaluation with a specific decoding configuration.
     Returns average CER and total time.
+
+    If fb_cache is provided (pre-extracted fbank features), it's used instead
+    of calling extract_fbank() for each utterance.
     """
     import torch
 
@@ -153,10 +170,14 @@ def eval_model(items: list, model, method: str, beam_size: int = 1, chunk_size: 
     total_time = 0.0
     skip_count = 0
 
-    for i, item in enumerate(items):
+    source = fb_cache if fb_cache else items
+    for i, entry in enumerate(source):
         try:
-            fb, fb_len = extract_fbank(item["wav"])
-            ref_txt = item.get("txt", "") or item.get("key", "")
+            if fb_cache:
+                fb, fb_len, ref_txt = entry
+            else:
+                fb, fb_len = extract_fbank(entry["wav"])
+                ref_txt = entry.get("txt", "") or entry.get("key", "")
 
             t0 = time.time()
             with torch.no_grad():
@@ -229,6 +250,9 @@ def main():
     # Load test data
     items = load_test_items(args.s0_dir, args.subset)
 
+    # Pre-extract fbank features once (avoids 6× repeated WAV reading across configs)
+    fb_cache = precompute_fbanks(items)
+
     # Evaluation configs
     eval_configs = [
         # (method, beam_size, chunk_size, ctc_weight, reverse_weight, label)
@@ -260,7 +284,7 @@ def main():
         try:
             cer, total_time, avg_rtf = eval_model(
                 items, model, method, beam, chunk, ctc_w, rev_w,
-                verbose=args.verbose
+                verbose=args.verbose, fb_cache=fb_cache
             )
             print(f"CER={cer:.2f}%")
             results.append({
