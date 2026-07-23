@@ -13,11 +13,8 @@
 
 基于 WeNet 框架的 **Conformer U2++** 端到端中文语音识别项目，使用 AISHELL-1 (178h) 数据集，完成从数据处理、模型训练、解码评估、消融分析到 JIT 导出/量化的全流程。
 
-<p align="center">
-  <img src="figures/streaming_tradeoff.png" width="90%" alt="Streaming Tradeoff: CER vs Latency">
-  <br>
-  <em>图 1: 流式延迟-精度权衡曲线 — chunk 越小延迟越低，CER 略升</em>
-</p>
+![Streaming Tradeoff](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/streaming_tradeoff.png)
+*图 1: 流式延迟-精度权衡曲线 — chunk 越小延迟越低，CER 略升*
 
 ---
 
@@ -40,11 +37,8 @@
 
 ## 架构概览
 
-<p align="center">
-  <img src="figures/architecture_diagram.png" width="95%" alt="WeNet Conformer U2++ Architecture">
-  <br>
-  <em>图 0: Conformer U2++ 两遍解码架构 — CTC Greedy 第一遍（流式低延迟）→ Attention Rescoring 第二遍（高精度重打分）</em>
-</p>
+![WeNet Conformer U2++ Architecture](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/architecture_diagram.png)
+*图 0: Conformer U2++ 两遍解码架构 — CTC Greedy 第一遍（流式低延迟）→ Attention Rescoring 第二遍（高精度重打分）*
 
 **核心特性**：
 - **Conformer Encoder**：CNN + 多头自注意力 + FFN (Macaron)，12 层，相对位置编码
@@ -60,27 +54,18 @@
 
 ### 🎯 CER vs Latency 权衡曲线
 
-<p align="center">
-  <img src="figures/streaming_tradeoff.png" width="80%" alt="Streaming Tradeoff">
-  <br>
-  <em>左轴: CER(%)，右轴: 延迟(ms)。chunk=16 在延迟与精度间取得最佳平衡。</em>
-</p>
+![Streaming Tradeoff](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/streaming_tradeoff.png)
+*左轴: CER(%)，右轴: 延迟(ms)。chunk=16 在延迟与精度间取得最佳平衡。*
 
 ### 📊 解码模式对比
 
-<p align="center">
-  <img src="figures/architecture_comparison.png" width="95%" alt="Architecture Comparison">
-  <br>
-  <em>Attention Rescoring 取得最优 CER 4.61%，CTC Greedy 速度最快 (RTF 0.0088)。</em>
-</p>
+![Architecture Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/architecture_comparison.png)
+*Attention Rescoring 取得最优 CER 4.61%，CTC Greedy 速度最快 (RTF 0.0088)。*
 
 ### ⚡ 各 Chunk 的 RTF 对比
 
-<p align="center">
-  <img src="figures/rtf_comparison.png" width="80%" alt="RTF Comparison">
-  <br>
-  <em>所有流式配置的 RTF 均远小于 1.0，实时推理能力充足。</em>
-</p>
+![RTF Comparison](https://raw.githubusercontent.com/ywyuan666/wenet-aishell-u2pp/main/figures/rtf_comparison.png)
+*所有流式配置的 RTF 均远小于 1.0，实时推理能力充足。*
 
 ---
 
